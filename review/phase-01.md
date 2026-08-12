@@ -44,3 +44,4 @@ Ett Cargo target beskriver något Cargo kan bygga. Targetet har en crate root oc
 | Datum | Sammanhang | Resultat | Evidens |
 |---|---|---|---|
 | 2026-08-12 | Ursprunglig förutsägelse | Missuppfattning | Svar på fråga 7–8 |
+| 2026-08-12 | Omedelbar tillämpning i mikrolabb | Delvis, target kunde inte identifieras säkert | Klassificering av `src/main.rs` efter `cargo new --bin` |

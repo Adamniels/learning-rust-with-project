@@ -12,8 +12,8 @@ Statusmarkörer:
 
 Mål: bygga en synkron job server-kärna och förstå hur Rust representerar data, ägarskap och fel.
 
-- [~] Enhet 0: Verktygskedjan och kompileringsmodellen
-- [ ] Enhet 1: Bindningar, typer, uttryck, funktioner och kontrollflöde
+- [x] Enhet 0: Verktygskedjan och kompileringsmodellen
+- [~] Enhet 1: Bindningar, typer, uttryck, funktioner och kontrollflöde
 - [ ] Enhet 2: Ownership, ägd data och structs
 - [ ] Enhet 3: Borrowing, slices och metoder
 - [ ] Enhet 4: Enums, pattern matching, `Option` och tillståndsmodellering
