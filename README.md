@@ -25,6 +25,8 @@ Varje konceptenhet följer samma loop. En enhet kan sträcka sig över valfritt 
 
 Stegen är en lärordning, inte en sessionsmall. Ett arbetstillfälle får sluta efter vilket avslutat steg eller delsteg som helst. Återkallning används efter ett tillräckligt långt uppehåll för att vara meningsfull, inte mekaniskt varje gång projektet öppnas.
 
+Felaktiga förutsägelser korrigeras och förklaras direkt, men behöver inte besvaras på nytt i samma arbetstillfälle. Betydelsefulla missförstånd och precisionsluckor registreras i `review/` och återkommer efter distans, genom naturlig tillämpning eller under fasens konsolidering.
+
 ## Så återupptas arbetet
 
 1. Öppna [PROGRESS.md](PROGRESS.md).
@@ -34,17 +36,30 @@ Stegen är en lärordning, inte en sessionsmall. Ett arbetstillfälle får sluta
 
 [ROADMAP.md](ROADMAP.md) beskriver progressionen och kriterierna för att gå vidare. `PROGRESS.md` är däremot den enda operativa källan till var arbetet befinner sig just nu.
 
-## Planerad kodstruktur
+## Planeringsnivåer
 
-Kodmapparna skapas först när de behövs:
+- [ROADMAP.md](ROADMAP.md) innehåller de fyra stabila faserna och deras övergripande resultat.
+- `phases/` innehåller en detaljerad plan för den aktiva fasen: konceptenheter, labbfokus, projektinkrement och avslutskriterier.
+- [PROGRESS.md](PROGRESS.md) innehåller endast det aktuella arbetsläget och nästa konkreta handling.
+- `notes/` innehåller Adams fria anteckningar, vilka Codex inte skriver om utan en uttrycklig begäran.
+- `review/` innehåller den strukturerade repetitionskön, historiken och enkel lärstatistik.
+
+Bara den aktiva fasen detaljplaneras. Exakta förutsägelsefrågor och labbinstruktioner skapas när enheten börjar, så att svårigheten kan anpassas utan att lösningar avslöjas i förväg.
+
+## Struktur
+
+Den övergripande strukturen är:
 
 ```text
 learning-rust/
 ├── README.md
 ├── ROADMAP.md
 ├── PROGRESS.md
+├── phases/        # Detaljplan för den aktiva fasen
+├── notes/         # Adams fria anteckningar, en fil per fas
+├── review/        # Repetitionsobjekt och lärstatistik
 ├── job-server/    # Det sammanhängande huvudprojektet
 └── labs/          # Små, isolerade konceptövningar
 ```
 
-Vi undviker att skapa en detaljerad mapphierarki i förväg. Strukturen får växa när Rusts modulmodell och projektets faktiska behov motiverar den.
+Vi undviker en detaljerad kodhierarki i förväg. Innehållet i `job-server/` och `labs/` får växa när Rusts modulmodell och de faktiska lärbehoven motiverar det.

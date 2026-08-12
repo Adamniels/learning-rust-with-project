@@ -4,10 +4,11 @@ Detta är projektets operativa återupptagningspunkt. Filen ska vara kort och up
 
 ## Nuvarande position
 
-- **Fas:** Förberedelse inför fas 1, Rust som språk
-- **Konceptenhet:** Verktygskedjan och den grundläggande byggcykeln
-- **Steg i inlärningsloopen:** Inte påbörjat
-- **Status:** Studiesystemet etableras
+- **Fas:** Fas 1, Rust som språk
+- **Konceptenhet:** Enhet 0, verktygskedjan och kompileringsmodellen
+- **Steg i inlärningsloopen:** Lokal installationskontroll före mikrolabb
+- **Status:** Mental modell och förutsägelse genomförda
+- **Repetition:** 1 öppet objekt, inget ska repeteras omedelbart
 
 ## Senast slutfört
 
@@ -15,14 +16,18 @@ Detta är projektets operativa återupptagningspunkt. Filen ska vara kort och up
 - Fyra kompetensbaserade faser är valda utan veckor, deadlines eller bestämda passlängder.
 - Den återkommande inlärningsloopen är fastställd.
 - Projektets dokumentationsstruktur är etablerad.
+- Fas 1 är detaljplanerad konceptenhet för konceptenhet och kopplad till inkrement i job servern.
+- `job-server/` och `labs/` finns som tomma arbetsytor, och projektet är ett Git-repo.
+- Enhet 0:s mentala modell och åtta förutsägelsefrågor är genomförda och granskade.
+- Anteckningsytan och repetitionssystemet är etablerade. Ett target-relaterat repetitionsobjekt är öppet för senare återkallning.
 
 ## Nästa konkreta handling
 
-Starta den första konceptenheten med en mental modell av Rusts verktygskedja: relationen mellan `rustc`, Cargo, packages, crates, targets och kompileringscykeln. Kontrollera därefter den lokala installationen innan någon kod eller projektstruktur skapas.
+Kontrollera den lokala Rust-installationen genom att identifiera aktiv toolchain och versionerna av `rustup`, `rustc` och Cargo. Tolka resultaten innan `labs/` eller `job-server/` initieras som Cargo-packages.
 
 ## Aktuell lärdom
 
-Planeringen är tillståndsbaserad. En konceptenhet behöver inte motsvara ett arbetstillfälle, och ett arbetstillfälle behöver inte ha en bestämd längd.
+Cargo target betyder något Cargo kan bygga, inte katalogen `target/`. Ett target byggs från en crate root som en crate och producerar byggartefakter, vilka normalt lagras under `target/`.
 
 ## Öppna frågor eller blockerare
 

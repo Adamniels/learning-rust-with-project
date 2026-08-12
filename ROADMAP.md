@@ -12,15 +12,16 @@ Statusmarkörer:
 
 Mål: bygga en synkron job server-kärna och förstå hur Rust representerar data, ägarskap och fel.
 
-- [ ] Verktygskedjan: `rustc`, Cargo, paket, crates och den grundläggande byggcykeln
-- [ ] Bindningar, mutabilitet, skalära typer, sammansatta typer, uttryck och funktioner
-- [ ] Ownership, moves, `Copy`, scopes och destruktion
-- [ ] Borrowing, referenser, mutabla referenser och slices
-- [ ] Structs, metoder och associerade funktioner
-- [ ] Enums, pattern matching, `Option` och tillståndsmodellering
-- [ ] `String`, `Vec`, `HashMap` och iteratorernas grunder
-- [ ] `Result`, `?`, egna fel och gränsen mellan återställbara fel och panik
-- [ ] Synkron domänkärna: skapa, köa, hämta och överföra jobb mellan giltiga tillstånd
+- [~] Enhet 0: Verktygskedjan och kompileringsmodellen
+- [ ] Enhet 1: Bindningar, typer, uttryck, funktioner och kontrollflöde
+- [ ] Enhet 2: Ownership, ägd data och structs
+- [ ] Enhet 3: Borrowing, slices och metoder
+- [ ] Enhet 4: Enums, pattern matching, `Option` och tillståndsmodellering
+- [ ] Enhet 5: Collections och iteration
+- [ ] Enhet 6: `Result`, felmodellering och felpropagering
+- [ ] Enhet 7: Konsolidering av den synkrona kärnan
+
+Varje enhet kombinerar teori, förutsägelse, mikrolabb och ett projektinkrement. Den [detaljerade fasplanen](phases/01-rust-as-language.md) beskriver beroendeordningen och vad varje inkrement tillför.
 
 Utgångskriterium: kunna förklara vem som äger varje centralt värde, välja mellan move och borrow med avsikt samt modellera jobbens tillstånd och fel utan ogiltiga mellanlägen.
 
@@ -33,7 +34,7 @@ Mål: forma en modulär och testbar kärna där abstraktionerna uttrycker verkli
 - [ ] Generics, monomorfisering och när trait objects är motiverade
 - [ ] Iterators, closures och funktionell databehandling
 - [ ] Lifetimes som relationer mellan referensers giltighet
-- [ ] Enhets- och integrationstester
+- [ ] Testdesign, integrationstester och testbara systemgränser
 - [ ] Domäninvarianter och idiomatisk API-design
 - [ ] Separera domänkärnan från kö-, lagrings- och exekveringsadaptrar
 
