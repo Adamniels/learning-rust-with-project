@@ -5,35 +5,27 @@ Detta är projektets operativa återupptagningspunkt. Filen ska vara kort och up
 ## Nuvarande position
 
 - **Fas:** Fas 1, Rust som språk
-- **Konceptenhet:** Enhet 1, bindningar, typer, uttryck, funktioner och kontrollflöde
+- **Konceptenhet:** Enhet 2, ownership, ägd data och structs
 - **Steg i inlärningsloopen:** Mental modell är nästa steg
-- **Status:** Enhet 0 är avslutad och verifierad
-- **Repetition:** 1 öppet objekt, inget ska repeteras omedelbart
+- **Status:** Enhet 1 är avslutad och verifierad
+- **Repetition:** 3 öppna objekt, inget ska repeteras omedelbart
 
 ## Senast slutfört
 
-- Durable job server är vald som sammanhängande huvudprojekt.
-- Fyra kompetensbaserade faser är valda utan veckor, deadlines eller bestämda passlängder.
-- Den återkommande inlärningsloopen är fastställd.
-- Projektets dokumentationsstruktur är etablerad.
-- Fas 1 är detaljplanerad konceptenhet för konceptenhet och kopplad till inkrement i job servern.
-- `job-server/` och `labs/` finns som tomma arbetsytor, och projektet är ett Git-repo.
-- Enhet 0:s mentala modell och åtta förutsägelsefrågor är genomförda och granskade.
-- Anteckningsytan och repetitionssystemet är etablerade. Ett target-relaterat repetitionsobjekt är öppet för senare återkallning.
-- Den lokala installationen är verifierad: stable-toolchain för Apple Silicon, med `rustc` och Cargo 1.97.1.
-- `labs/00-toolchain-basics` är skapat som ett binary Cargo-package. Manifest, crate root och förväntad artefakt har inspekterats.
-- `cargo check`, `cargo build`, `cargo run` och `cargo test` har körts och deras olika artefakter och beteenden har observerats.
-- Ett avsiktligt typfel i mikrolabbet identifierades och reparerades genom att ändra typannoteringen från `i32` till `&str`; `cargo check` passerar igen.
-- `job-server` är initierat som ett binary Cargo-package. Byggcykeln passerar och det tillfälliga smoke-testet körs som ett separat testprogram.
-- Enhet 0 uppfyller sitt avslutskriterium och är markerad som klar i roadmapen.
+- Enhet 0 etablerade och verifierade Rusts toolchain, Cargo-modell och `job-server`-package.
+- Enhet 1:s teori och förutsägelser är genomförda. Mikrolabbet hoppades över efter svårighetskalibrering.
+- Job servern simulerar ett synkront jobb med högst ett konfigurerat antal försök och retry delay före varje retry.
+- Simulatorns tabelltest täcker noll försök, framgång på försök 1–3 och failure när maxgränsen nås.
+- `cargo fmt --check`, `cargo check`, `cargo test` och `cargo run` passerar; körningen ger `(3, false, 6)` för `simulate_job(3, 4)`.
+- Enhet 1 uppfyller sitt avslutskriterium och är markerad som klar i roadmapen.
 
 ## Nästa konkreta handling
 
-Starta enhet 1 med den mentala modellen för bindningar, immutability, `mut`, shadowing, typer, statements, expressions och funktioners returvärden. Följ sedan med förutsägelsefrågor innan kod körs.
+Starta enhet 2 med den mentala modellen för ownership: stack och heap, ägare, moves, `Copy`, explicit `Clone`, scopes och deterministisk destruktion. Introducera därefter structs som ägare av sammanhörande data innan förutsägelsefrågorna.
 
 ## Aktuell lärdom
 
-Cargo arbetar från ett package-manifest, identifierar targets och anropar `rustc` för deras crates. `cargo check`, `build`, `run` och `test` representerar olika delar av byggcykeln och kan producera olika artefakter.
+En retry delay representerar väntan före ett nytt försök. Genom att lägga delay i början av försök 2 och senare uppstår ingen delay efter det sista försöket, och `can_attempt` behövs bara som loopvillkor.
 
 ## Öppna frågor eller blockerare
 

@@ -25,6 +25,8 @@ Varje konceptenhet följer samma loop. En enhet kan sträcka sig över valfritt 
 
 Stegen är en lärordning, inte en sessionsmall. Ett arbetstillfälle får sluta efter vilket avslutat steg eller delsteg som helst. Återkallning används efter ett tillräckligt långt uppehåll för att vara meningsfull, inte mekaniskt varje gång projektet öppnas.
 
+Mikrolabbar är diagnostiska, inte obligatoriska. De hoppas över eller komprimeras när de främst repeterar generell programmering som Adam redan behärskar. Ett labb ska isolera Rust-specifik friktion eller en verklig osäkerhet; kvarvarande koncept kan annars prövas direkt i projektinkrementet.
+
 Felaktiga förutsägelser korrigeras och förklaras direkt, men behöver inte besvaras på nytt i samma arbetstillfälle. Betydelsefulla missförstånd och precisionsluckor registreras i `review/` och återkommer efter distans, genom naturlig tillämpning eller under fasens konsolidering.
 
 ## Så återupptas arbetet
@@ -52,6 +54,7 @@ Den övergripande strukturen är:
 
 ```text
 learning-rust/
+├── AGENTS.md      # Stabil arbetsinstruktion för alla agenter
 ├── README.md
 ├── ROADMAP.md
 ├── PROGRESS.md

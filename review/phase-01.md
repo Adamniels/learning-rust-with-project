@@ -4,11 +4,11 @@
 
 | Mått | Antal |
 |---|---:|
-| Förutsägelsefrågor besvarade | 8 |
-| Klara vid första försöket | 3 |
-| Delvis korrekta | 3 |
-| Missuppfattningar | 2 |
-| Öppna repetitionsobjekt | 1 |
+| Förutsägelsefrågor besvarade | 18 |
+| Klara vid första försöket | 9 |
+| Delvis korrekta | 6 |
+| Missuppfattningar | 3 |
+| Öppna repetitionsobjekt | 3 |
 | Förstärkta repetitionsobjekt | 0 |
 | Stabila repetitionsobjekt | 0 |
 | Återkommande missuppfattningar | 0 |
@@ -45,3 +45,63 @@ Ett Cargo target beskriver något Cargo kan bygga. Targetet har en crate root oc
 |---|---|---|---|
 | 2026-08-12 | Ursprunglig förutsägelse | Missuppfattning | Svar på fråga 7–8 |
 | 2026-08-12 | Omedelbar tillämpning i mikrolabb | Delvis, target kunde inte identifieras säkert | Klassificering av `src/main.rs` efter `cargo new --bin` |
+
+## F1-U1-001: Blockvärden, semikolon och funktionsretur
+
+- **Enhet:** 1
+- **Kategori:** Mental modell
+- **Status:** Öppen
+- **Ursprung:** Förutsägelsefråga 5–6
+- **Nästa tillfälle:** Naturlig tillämpning i enhet 1:s mikrolabb och projektinkrement
+- **Ska repeteras nu:** Nej
+
+### Observerad modell
+
+Ett semikolon efter blockets sista expression antogs göra blocket ogiltigt. En funktion vars avslutande expression hade semikolon bedömdes korrekt som icke-kompilerande, men orsaken angavs vara att ett explicit `return` saknades.
+
+### Korrekt modell
+
+Ett block med en avslutande expression utan semikolon producerar expressionens värde. Med semikolon kastas värdet bort och blocket producerar `()`. Det är fortfarande ett giltigt block om sammanhanget accepterar `()`.
+
+Rust kräver inte ett explicit `return` för funktionens slutvärde. En funktion som lovar `i32` kan avslutas med en `i32`-expression utan semikolon. Om semikolon läggs till producerar kroppen `()`, vilket ger typkonflikten `expected i32, found ()`.
+
+### Framtida återkallningsfrågor
+
+1. Vad producerar blocken `{ 4 * 2 }` respektive `{ 4 * 2; }`?
+2. Varför kompilerar `fn double(x: i32) -> i32 { x * 2 }` utan `return`?
+
+### Historik
+
+| Datum | Sammanhang | Resultat | Evidens |
+|---|---|---|---|
+| 2026-08-13 | Ursprunglig förutsägelse | Missuppfattning och precisionslucka | Svar på fråga 5–6 |
+| 2026-08-13 | Projektinkrement | Korrekt omedelbar tillämpning, status lämnas öppen till senare återkallning | `simulate_job` returnerar failure-tuplen som funktionens avslutande expression |
+
+## F1-U1-002: Tuple- och arraytyper
+
+- **Enhet:** 1
+- **Kategori:** Typnotation
+- **Status:** Öppen
+- **Ursprung:** Förutsägelsefråga 10
+- **Nästa tillfälle:** Naturlig användning av tuples eller arrays, annars under enhet 1:s avslutning
+- **Ska repeteras nu:** Nej
+
+### Observerad modell
+
+Tupletypen identifierades nästan korrekt men Rust-typen `bool` kallades `boolean`. Arraytypen uttrycktes med tuplelik notation `(u32, 3)`.
+
+### Korrekt modell
+
+Tupletypen i exemplet är `(u64, bool, u32)`. En arraytyp skrivs `[T; N]`, där `T` är elementtypen och `N` den fasta längden. Typen för tre `u32`-värden är därför `[u32; 3]`.
+
+### Framtida återkallningsfrågor
+
+1. Vilken typ har `(7_u64, true, 2_u32)`?
+2. Hur skiljer sig typnotationerna för `(u32, u32, u32)` och `[u32; 3]`, och vad uttrycker de?
+
+### Historik
+
+| Datum | Sammanhang | Resultat | Evidens |
+|---|---|---|---|
+| 2026-08-13 | Ursprunglig förutsägelse | Delvis korrekt | Svar på fråga 10 |
+| 2026-08-13 | Projektinkrement | Korrekt omedelbar tillämpning, status lämnas öppen till senare återkallning | Returtypen `(u32, bool, u32)` och arrayen av tuplebaserade testfall används korrekt |
