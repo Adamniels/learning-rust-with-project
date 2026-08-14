@@ -4,11 +4,11 @@
 
 | Mått | Antal |
 |---|---:|
-| Förutsägelsefrågor besvarade | 18 |
-| Klara vid första försöket | 9 |
-| Delvis korrekta | 6 |
+| Förutsägelsefrågor besvarade | 24 |
+| Klara vid första försöket | 14 |
+| Delvis korrekta | 7 |
 | Missuppfattningar | 3 |
-| Öppna repetitionsobjekt | 3 |
+| Öppna repetitionsobjekt | 4 |
 | Förstärkta repetitionsobjekt | 0 |
 | Stabila repetitionsobjekt | 0 |
 | Återkommande missuppfattningar | 0 |
@@ -105,3 +105,30 @@ Tupletypen i exemplet är `(u64, bool, u32)`. En arraytyp skrivs `[T; N]`, där 
 |---|---|---|---|
 | 2026-08-13 | Ursprunglig förutsägelse | Delvis korrekt | Svar på fråga 10 |
 | 2026-08-13 | Projektinkrement | Korrekt omedelbar tillämpning, status lämnas öppen till senare återkallning | Returtypen `(u32, bool, u32)` och arrayen av tuplebaserade testfall används korrekt |
+
+## F1-U2-001: Struct update flyttar icke-`Copy`-fält
+
+- **Enhet:** 2
+- **Kategori:** Ownership
+- **Status:** Öppen
+- **Ursprung:** Förutsägelsefråga 6
+- **Nästa tillfälle:** Naturlig användning av struct update syntax, annars under fasens konsolidering
+- **Ska repeteras nu:** Nej
+
+### Observerad modell
+
+Efter `Job { max_attempts: 5, ..original }` antogs både `original.max_attempts` och `original.payload` fortfarande vara användbara.
+
+### Korrekt modell
+
+Struct update syntax klonar inte hela ursprungsvärdet. Fält som inte anges explicit hämtas individuellt från ursprungsstructen: `Copy`-fält kopieras och icke-`Copy`-fält flyttas. I exemplet sätts `max_attempts` explicit i det nya värdet, så `original.max_attempts` förblir orört och användbart. `payload` hämtas däremot från `original` och flyttas, vilket gör `original.payload` ogiltigt.
+
+### Framtida återkallningsfrågor
+
+1. Efter en struct update, vilka fält är fortfarande användbara från ursprungsstructen och varför?
+
+### Historik
+
+| Datum | Sammanhang | Resultat | Evidens |
+|---|---|---|---|
+| 2026-08-14 | Ursprunglig förutsägelse | Delvis korrekt | Första utskriften bedömdes implicit rätt, men det flyttade `String`-fältet bedömdes fortfarande som användbart |

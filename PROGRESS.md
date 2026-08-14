@@ -5,10 +5,10 @@ Detta är projektets operativa återupptagningspunkt. Filen ska vara kort och up
 ## Nuvarande position
 
 - **Fas:** Fas 1, Rust som språk
-- **Konceptenhet:** Enhet 2, ownership, ägd data och structs
+- **Konceptenhet:** Enhet 3, borrowing, slices och metoder
 - **Steg i inlärningsloopen:** Mental modell är nästa steg
-- **Status:** Enhet 1 är avslutad och verifierad
-- **Repetition:** 3 öppna objekt, inget ska repeteras omedelbart
+- **Status:** Enhet 2 är avslutad och verifierad
+- **Repetition:** 4 öppna objekt, inget ska repeteras omedelbart
 
 ## Senast slutfört
 
@@ -18,14 +18,20 @@ Detta är projektets operativa återupptagningspunkt. Filen ska vara kort och up
 - Simulatorns tabelltest täcker noll försök, framgång på försök 1–3 och failure när maxgränsen nås.
 - `cargo fmt --check`, `cargo check`, `cargo test` och `cargo run` passerar; körningen ger `(3, false, 6)` för `simulate_job(3, 4)`.
 - Enhet 1 uppfyller sitt avslutskriterium och är markerad som klar i roadmapen.
+- Enhet 2:s första ownershipförutsägelser gav fem klara svar av sex. Moves, `Copy`, `Clone`, scopes, funktionsargument och partial moves förklarades korrekt.
+- Ett separat mikrolabb hoppas över eftersom svaren redan visar tillräcklig förståelse; ownership prövas direkt i projektinkrementet.
+- `Job` äger sin `String`-payload och konsumeras av `simulate_job`, som flyttar jobbet vidare till `SimulationResult` utan `clone()`.
+- Ett reducerat tabelltest täcker fyra skilda kontrollflöden och ett separat test verifierar att jobbdata bevaras i resultatet.
+- `cargo fmt --check`, `cargo check`, `cargo test` och `cargo run` passerar. Körningen ger `send-email, 3, false, 6`.
+- Enhet 2 uppfyller sitt avslutskriterium: ownership, moves, `Copy`, `Clone`, scopes och partial moves har förklarats och använts i projektkod. Ett separat compiler-error-experiment hoppades över eftersom use-after-move redan behärskas.
 
 ## Nästa konkreta handling
 
-Starta enhet 2 med den mentala modellen för ownership: stack och heap, ägare, moves, `Copy`, explicit `Clone`, scopes och deterministisk destruktion. Introducera därefter structs som ägare av sammanhörande data innan förutsägelsefrågorna.
+Starta enhet 3 med mentalmodellen för borrowing: varför lån behövs, `&T` och `&mut T`, aliasingreglerna, reborrowing på grundnivå, slices samt skillnaden mellan `self`, `&self` och `&mut self`.
 
 ## Aktuell lärdom
 
-En retry delay representerar väntan före ett nytt försök. Genom att lägga delay i början av försök 2 och senare uppstår ingen delay efter det sista försöket, och `can_attempt` behövs bara som loopvillkor.
+Ett funktionsargument by value flyttar `Job` till parametern. Funktionen kan därefter flytta samma jobb vidare till `SimulationResult`, så anroparen återfår åtkomst genom `result.job`, inte genom den tidigare och nu invaliderade bindningen `job`.
 
 ## Öppna frågor eller blockerare
 
