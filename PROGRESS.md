@@ -5,10 +5,10 @@ Detta är projektets operativa återupptagningspunkt. Filen ska vara kort och up
 ## Nuvarande position
 
 - **Fas:** Fas 1, Rust som språk
-- **Konceptenhet:** Enhet 3, borrowing, slices och metoder
-- **Steg i inlärningsloopen:** Mental modell är nästa steg
-- **Status:** Enhet 2 är avslutad och verifierad
-- **Repetition:** 4 öppna objekt, inget ska repeteras omedelbart
+- **Konceptenhet:** Enhet 4, enums, pattern matching, `Option` och tillståndsmodellering
+- **Steg i inlärningsloopen:** Projektinkrement är nästa steg
+- **Status:** Enhet 4:s mentalmodell och första förutsägelser är genomförda
+- **Repetition:** 5 öppna objekt, inget ska repeteras omedelbart
 
 ## Senast slutfört
 
@@ -24,14 +24,22 @@ Detta är projektets operativa återupptagningspunkt. Filen ska vara kort och up
 - Ett reducerat tabelltest täcker fyra skilda kontrollflöden och ett separat test verifierar att jobbdata bevaras i resultatet.
 - `cargo fmt --check`, `cargo check`, `cargo test` och `cargo run` passerar. Körningen ger `send-email, 3, false, 6`.
 - Enhet 2 uppfyller sitt avslutskriterium: ownership, moves, `Copy`, `Clone`, scopes och partial moves har förklarats och använts i projektkod. Ett separat compiler-error-experiment hoppades över eftersom use-after-move redan behärskas.
+- Enhet 3:s första förutsägelser gav tre klara svar av fyra. Delade lån, flera läsare och lånets slut vid sista användning förklarades korrekt.
+- Ett separat mikrolabb hoppas över; skillnaden mellan ett lånat `&str` och owned `String` prövas genom metoder direkt i projektinkrementet.
+- `Job` äger nu sin attempt-räknare och exponerar observerande metoder med `&self`, en muterande metod med `&mut self` och payloaden som lånad `&str`.
+- `simulate_job` lånar ett jobb exklusivt under körningen och behöver inte längre konsumera eller returnera det. Anroparen använder jobbet igen efter att lånet avslutats.
+- Unit 3-implementationen passerar `cargo fmt --check`, `cargo check`, två tester och `cargo run`; körningen ger `send-email, 3, false, 6`.
+- Enhet 3 uppfyller sitt avslutskriterium och är markerad som klar i roadmapen.
+- Enhet 4:s första förutsägelser gav tre klara svar av fyra. Associated data, exhaustiveness och ownership vid matching by value respektive reference förklarades korrekt.
+- Tillståndsfrågan besvarades med en giltig ogiltig boolkombination men bara ett av två efterfrågade exempel; inget separat reviewobjekt eller mikrolabb behövs.
 
 ## Nästa konkreta handling
 
-Starta enhet 3 med mentalmodellen för borrowing: varför lån behövs, `&T` och `&mut T`, aliasingreglerna, reborrowing på grundnivå, slices samt skillnaden mellan `self`, `&self` och `&mut self`.
+Ge kraven för enhet 4:s projektinkrement: inför `JobKind` och `JobState`, ersätt boolskt successutfall och sentinelvärdet för planerad success med enums och `Option`, och gör tillståndsövergångarna explicita utan att ännu introducera `Result`.
 
 ## Aktuell lärdom
 
-Ett funktionsargument by value flyttar `Job` till parametern. Funktionen kan därefter flytta samma jobb vidare till `SimulationResult`, så anroparen återfår åtkomst genom `result.job`, inte genom den tidigare och nu invaliderade bindningen `job`.
+En enum definierar en sluten mängd tillåtna former där varje variant kan bära exakt den data som hör till tillståndet. `match` tvingar hantering av alla former, och `Option<T>` skiljer explicit frånvaro från ett godtyckligt sentinelvärde.
 
 ## Öppna frågor eller blockerare
 

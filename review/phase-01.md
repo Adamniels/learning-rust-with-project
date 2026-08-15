@@ -4,11 +4,11 @@
 
 | Mått | Antal |
 |---|---:|
-| Förutsägelsefrågor besvarade | 24 |
-| Klara vid första försöket | 14 |
-| Delvis korrekta | 7 |
+| Förutsägelsefrågor besvarade | 32 |
+| Klara vid första försöket | 20 |
+| Delvis korrekta | 9 |
 | Missuppfattningar | 3 |
-| Öppna repetitionsobjekt | 4 |
+| Öppna repetitionsobjekt | 5 |
 | Förstärkta repetitionsobjekt | 0 |
 | Stabila repetitionsobjekt | 0 |
 | Återkommande missuppfattningar | 0 |
@@ -132,3 +132,31 @@ Struct update syntax klonar inte hela ursprungsvärdet. Fält som inte anges exp
 | Datum | Sammanhang | Resultat | Evidens |
 |---|---|---|---|
 | 2026-08-14 | Ursprunglig förutsägelse | Delvis korrekt | Första utskriften bedömdes implicit rätt, men det flyttade `String`-fältet bedömdes fortfarande som användbart |
+
+## F1-U3-001: Ett lån äger inte den lånade datan
+
+- **Enhet:** 3
+- **Kategori:** Borrowing
+- **Status:** Öppen
+- **Ursprung:** Förutsägelsefråga 4
+- **Nästa tillfälle:** Naturlig tillämpning av `&self` och `&mut self` i enhet 3:s projektinkrement
+- **Ska repeteras nu:** Nej
+
+### Observerad modell
+
+`view` från en metod med returtypen `&str` beskrevs som att den tog ownership av `job.payload`. Konflikten med en senare `&mut self`-metod identifierades korrekt, men förklarades som en ownershipöverföring genom en pekare.
+
+### Korrekt modell
+
+Bindningen `view` innehåller ett referensvärde men äger inte strängens bytes. Den håller ett delat lån av data som ägs av `job.payload`. Eftersom `view` används efter anropet till `replace_payload`, är det delade lånet fortfarande aktivt när metoden begär ett exklusivt `&mut self`-lån av hela jobbet. Lånen kan inte samexistera. Att ersätta payloaden skulle dessutom droppa den gamla `String` vars buffer `view` visar.
+
+### Framtida återkallningsfrågor
+
+1. Vem äger texten när en metod returnerar `&str`, och varför kan en senare `&mut self`-operation behöva vänta tills vyns sista användning?
+
+### Historik
+
+| Datum | Sammanhang | Resultat | Evidens |
+|---|---|---|---|
+| 2026-08-15 | Ursprunglig förutsägelse | Delvis korrekt | Compile-resultatet identifierades, men lånet beskrevs som en ownershipöverföring |
+| 2026-08-15 | Projektinkrement | Korrekt omedelbar tillämpning, status lämnas öppen till senare återkallning | `payload(&self) -> &str`, `record_attempt(&mut self)` och `simulate_job(&mut Job, ...)` skiljer observerande och muterande lån utan ownershipöverföring |

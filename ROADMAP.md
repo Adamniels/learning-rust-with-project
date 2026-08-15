@@ -15,8 +15,8 @@ Mål: bygga en synkron job server-kärna och förstå hur Rust representerar dat
 - [x] Enhet 0: Verktygskedjan och kompileringsmodellen
 - [x] Enhet 1: Bindningar, typer, uttryck, funktioner och kontrollflöde
 - [x] Enhet 2: Ownership, ägd data och structs
-- [~] Enhet 3: Borrowing, slices och metoder
-- [ ] Enhet 4: Enums, pattern matching, `Option` och tillståndsmodellering
+- [x] Enhet 3: Borrowing, slices och metoder
+- [~] Enhet 4: Enums, pattern matching, `Option` och tillståndsmodellering
 - [ ] Enhet 5: Collections och iteration
 - [ ] Enhet 6: `Result`, felmodellering och felpropagering
 - [ ] Enhet 7: Konsolidering av den synkrona kärnan
