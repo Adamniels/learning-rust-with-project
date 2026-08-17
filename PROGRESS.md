@@ -5,9 +5,9 @@ Detta är projektets operativa återupptagningspunkt. Filen ska vara kort och up
 ## Nuvarande position
 
 - **Fas:** Fas 1, Rust som språk
-- **Konceptenhet:** Enhet 4, enums, pattern matching, `Option` och tillståndsmodellering
-- **Steg i inlärningsloopen:** Projektinkrement är nästa steg
-- **Status:** Enhet 4:s mentalmodell och första förutsägelser är genomförda
+- **Konceptenhet:** Enhet 5, collections och iteration
+- **Steg i inlärningsloopen:** Mental modell är nästa steg
+- **Status:** Enhet 4 är avslutad och verifierad
 - **Repetition:** 5 öppna objekt, inget ska repeteras omedelbart
 
 ## Senast slutfört
@@ -32,14 +32,18 @@ Detta är projektets operativa återupptagningspunkt. Filen ska vara kort och up
 - Enhet 3 uppfyller sitt avslutskriterium och är markerad som klar i roadmapen.
 - Enhet 4:s första förutsägelser gav tre klara svar av fyra. Associated data, exhaustiveness och ownership vid matching by value respektive reference förklarades korrekt.
 - Tillståndsfrågan besvarades med en giltig ogiltig boolkombination men bara ett av två efterfrågade exempel; inget separat reviewobjekt eller mikrolabb behövs.
+- `JobKind` och `JobState` representerar kind samt `Queued`, `Running`, `Succeeded` och `Failed` med state-specifik data.
+- Simulatorn använder `Option<u32>` för planerad success, explicita transition methods och en lånad `&mut Job` utan boolskt domäntillstånd eller sentinelvärdet `0`.
+- Tre tester täcker `Queued → Running → Queued`, success på attempt 2 och terminal failure. `cargo fmt --check`, `cargo check`, `cargo test` och `cargo run` passerar; den enda varningen är att `Cleanup` ännu inte konstrueras.
+- Enhet 4 uppfyller sitt avslutskriterium och är markerad som klar i roadmapen.
 
 ## Nästa konkreta handling
 
-Ge kraven för enhet 4:s projektinkrement: inför `JobKind` och `JobState`, ersätt boolskt successutfall och sentinelvärdet för planerad success med enums och `Option`, och gör tillståndsövergångarna explicita utan att ännu introducera `Result`.
+Starta enhet 5 med mentalmodellen för collections och iteration: ägarskap av element i `Vec`, `VecDeque` och `HashMap`, åtkomstmönster, samt skillnaden mellan `iter`, `iter_mut` och konsumerande `into_iter`.
 
 ## Aktuell lärdom
 
-En enum definierar en sluten mängd tillåtna former där varje variant kan bära exakt den data som hör till tillståndet. `match` tvingar hantering av alla former, och `Option<T>` skiljer explicit frånvaro från ett godtyckligt sentinelvärde.
+En enum gör terminala och icke-terminala jobbtillstånd ömsesidigt uteslutande. Associated output och error ägs endast av de variants där datan är giltig, och `Option<u32>` uttrycker frånvarande successplan utan ett magiskt tal.
 
 ## Öppna frågor eller blockerare
 
