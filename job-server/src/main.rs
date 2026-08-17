@@ -1,3 +1,5 @@
+use std::collections::{HashMap, VecDeque};
+
 // Structs
 enum JobKind {
     Email,
@@ -84,6 +86,48 @@ impl Job {
     }
 }
 
+struct JobServer {
+    next_job_id: u64,
+    jobs: HashMap<u64, Job>,
+    queue: VecDeque<u64>,
+}
+
+impl JobServer {
+    fn new() -> Self {
+        JobServer {
+            next_job_id: 1,
+            jobs: HashMap::new(),
+            queue: VecDeque::new(),
+        }
+    }
+
+    fn submit(&mut self, kind: JobKind, payload: String, max_attempts: u32) -> u64 {
+        let job_id = self.next_job_id;
+        let new_job = Job::new(kind, payload, max_attempts);
+        self.jobs.insert(job_id, new_job);
+        self.queue.push_back(job_id);
+        self.next_job_id += 1;
+        job_id
+    }
+
+    fn get(&self, job_id: u64) -> Option<&Job> {
+        self.jobs.get(&job_id)
+    }
+
+    fn next_queued(&mut self) -> Option<(u64, &mut Job)> {
+        let job_id = match self.queue.pop_front() {
+            Some(job_id) => job_id,
+            None => return None,
+        };
+        let job = match self.jobs.get_mut(&job_id) {
+            Some(job) => job,
+            None => return None,
+        };
+
+        Some((job_id, job))
+    }
+}
+
 // Functions
 fn retry_delay_seconds(failed_attempt: u32) -> u32 {
     match failed_attempt {
@@ -115,8 +159,19 @@ fn simulate_job(job: &mut Job, succeeds_on_attempt: Option<u32>) -> u32 {
 
 // Main
 fn main() {
-    let mut job = Job::new(JobKind::Email, String::from("send-email"), 3);
-    let total_retry_delay_sec = simulate_job(&mut job, None);
+    let mut job_server = JobServer::new();
+    // Skicka in Email, "send-email", max attempts 3.
+    job_server.submit(JobKind::Email, String::from("send-email"), 3);
+    // Skicka därefter in Cleanup, "cleanup", max attempts 1.
+    job_server.submit(JobKind::Cleanup, String::from("cleanup"), 1);
+    // Välj nästa jobb.
+    // Kör det valda jobbet genom befintliga simulate_job med None.
+    let Some((_job_id, job)) = job_server.next_queued() else {
+        println!("No queued jobs");
+        return;
+    };
+    // Behåll den nuvarande utskriften för det behandlade Email-jobbet.
+    let total_retry_delay_sec = simulate_job(job, None);
 
     let kind = match job.kind() {
         JobKind::Email => "email",
@@ -227,5 +282,95 @@ mod tests {
         } else {
             panic!("Expected job state to be failed")
         };
+    }
+
+    #[test]
+    fn new_empty_jobserver_return_none_for_get_and_next_queued() {
+        let mut jobserver = JobServer::new();
+        assert!(jobserver.get(1).is_none());
+        assert!(jobserver.next_queued().is_none());
+    }
+
+    #[test]
+    fn submissions_are_registered_and_queued_in_order() {
+        let mut jobserver = JobServer::new();
+
+        let first_id = jobserver.submit(JobKind::Email, String::from("send-email"), 3);
+
+        let second_id = jobserver.submit(JobKind::Cleanup, String::from("cleanup"), 1);
+
+        assert_eq!(first_id, 1);
+        assert_eq!(second_id, 2);
+
+        let first_job = jobserver.get(1).expect("job 1 should exist");
+
+        assert!(matches!(first_job.kind(), JobKind::Email));
+        assert_eq!(first_job.payload(), "send-email");
+        assert_eq!(first_job.max_attempts, 3);
+        assert_eq!(first_job.completed_attempts(), 0);
+        assert!(matches!(first_job.state(), JobState::Queued));
+
+        let second_job = jobserver.get(2).expect("job 2 should exist");
+
+        assert!(matches!(second_job.kind(), JobKind::Cleanup));
+        assert_eq!(second_job.payload(), "cleanup");
+        assert_eq!(second_job.max_attempts, 1);
+        assert_eq!(second_job.completed_attempts(), 0);
+        assert!(matches!(second_job.state(), JobState::Queued));
+
+        assert!(jobserver.get(3).is_none());
+
+        let queued_ids: Vec<u64> = jobserver.queue.iter().copied().collect();
+
+        assert_eq!(queued_ids, vec![1, 2]);
+
+        // iter() lånade bara kön och konsumerade den inte.
+        assert_eq!(jobserver.queue.len(), 2);
+    }
+
+    #[test]
+    fn next_queued_returns_jobs_in_fifo_order_and_keeps_them_registered() {
+        let mut jobserver = JobServer::new();
+
+        let first_id = jobserver.submit(JobKind::Email, String::from("send-email"), 3);
+
+        let second_id = jobserver.submit(JobKind::Cleanup, String::from("cleanup"), 1);
+
+        assert_eq!(first_id, 1);
+        assert_eq!(second_id, 2);
+
+        {
+            let (job_id, job) = jobserver
+                .next_queued()
+                .expect("first queued job should exist");
+
+            assert_eq!(job_id, 1);
+            assert_eq!(job.payload(), "send-email");
+            assert_eq!(job.try_begin_attempt(), Some(1));
+        }
+
+        // Det muterbara lånet ovan har upphört. Samma jobb finns kvar
+        // i registret och förändringen kan observeras genom get().
+        let first_job = jobserver.get(1).expect("job 1 should remain registered");
+
+        assert!(matches!(
+            first_job.state(),
+            JobState::Running { attempt: 1 }
+        ));
+
+        {
+            let (job_id, job) = jobserver
+                .next_queued()
+                .expect("second queued job should exist");
+
+            assert_eq!(job_id, 2);
+            assert_eq!(job.payload(), "cleanup");
+        }
+
+        assert!(jobserver.next_queued().is_none());
+
+        // Kön är tom, men jobben finns fortfarande i registret.
+        assert!(jobserver.get(1).is_some());
+        assert!(jobserver.get(2).is_some());
     }
 }

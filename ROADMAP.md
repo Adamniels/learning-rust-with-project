@@ -17,8 +17,8 @@ Mål: bygga en synkron job server-kärna och förstå hur Rust representerar dat
 - [x] Enhet 2: Ownership, ägd data och structs
 - [x] Enhet 3: Borrowing, slices och metoder
 - [x] Enhet 4: Enums, pattern matching, `Option` och tillståndsmodellering
-- [~] Enhet 5: Collections och iteration
-- [ ] Enhet 6: `Result`, felmodellering och felpropagering
+- [x] Enhet 5: Collections och iteration
+- [~] Enhet 6: `Result`, felmodellering och felpropagering
 - [ ] Enhet 7: Konsolidering av den synkrona kärnan
 
 Varje enhet kombinerar teori, förutsägelse, mikrolabb och ett projektinkrement. Den [detaljerade fasplanen](phases/01-rust-as-language.md) beskriver beroendeordningen och vad varje inkrement tillför.

@@ -4,11 +4,11 @@
 
 | Mått | Antal |
 |---|---:|
-| Förutsägelsefrågor besvarade | 32 |
-| Klara vid första försöket | 20 |
-| Delvis korrekta | 9 |
-| Missuppfattningar | 3 |
-| Öppna repetitionsobjekt | 5 |
+| Förutsägelsefrågor besvarade | 36 |
+| Klara vid första försöket | 22 |
+| Delvis korrekta | 10 |
+| Missuppfattningar | 4 |
+| Öppna repetitionsobjekt | 6 |
 | Förstärkta repetitionsobjekt | 0 |
 | Stabila repetitionsobjekt | 0 |
 | Återkommande missuppfattningar | 0 |
@@ -160,3 +160,31 @@ Bindningen `view` innehåller ett referensvärde men äger inte strängens bytes
 |---|---|---|---|
 | 2026-08-15 | Ursprunglig förutsägelse | Delvis korrekt | Compile-resultatet identifierades, men lånet beskrevs som en ownershipöverföring |
 | 2026-08-15 | Projektinkrement | Korrekt omedelbar tillämpning, status lämnas öppen till senare återkallning | `payload(&self) -> &str`, `record_attempt(&mut self)` och `simulate_job(&mut Job, ...)` skiljer observerande och muterande lån utan ownershipöverföring |
+
+## F1-U5-001: `iter_mut` lånar collectionen exklusivt
+
+- **Enhet:** 5
+- **Kategori:** Borrowing och iteration
+- **Status:** Öppen
+- **Ursprung:** Förutsägelsefråga 3
+- **Nästa tillfälle:** Naturlig tillämpning under enhet 5:s projektinkrement; det separata mikrolabbet hoppades över efter svårighetskalibrering
+- **Ska repeteras nu:** Nej
+
+### Observerad modell
+
+Mutation av ett element genom `&mut T` och en samtidig strukturell mutation genom `push_back` bedömdes kunna ske tillsammans inuti en `iter_mut`-loop.
+
+### Korrekt modell
+
+`iter_mut()` tar ett exklusivt `&mut`-lån av collectionen och iteratorn behåller lånet medan den används. Iteratorn kan säkert ge exklusiva lån till element, men collectionen kan inte samtidigt lånas mutabelt igen för en strukturell operation som `push_back`. En sådan operation kan dessutom ändra collectionens lagring och skulle kunna göra utestående elementreferenser ogiltiga. Den strukturella mutationen måste ske efter iteratorns sista användning.
+
+### Framtida återkallningsfrågor
+
+1. Varför får ett element ändras genom värdet från `iter_mut`, medan `push_back` på samma collection nekas inne i loopen?
+
+### Historik
+
+| Datum | Sammanhang | Resultat | Evidens |
+|---|---|---|---|
+| 2026-08-17 | Ursprunglig förutsägelse | Missuppfattning | Samtidig elementmutation och strukturell mutation bedömdes kompilera |
+| 2026-08-17 | Omedelbar relaterad tillämpning i projektinkrement | Korrekt avgränsning av ett mutabelt lån från `next_queued`; exakt `iter_mut`-konflikt återtestades inte, status lämnas öppen | Ett explicit block avslutar `&mut Job` innan `JobServer::get` och nästa `next_queued` |

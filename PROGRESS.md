@@ -5,10 +5,10 @@ Detta är projektets operativa återupptagningspunkt. Filen ska vara kort och up
 ## Nuvarande position
 
 - **Fas:** Fas 1, Rust som språk
-- **Konceptenhet:** Enhet 5, collections och iteration
-- **Steg i inlärningsloopen:** Mental modell är nästa steg
-- **Status:** Enhet 4 är avslutad och verifierad
-- **Repetition:** 5 öppna objekt, inget ska repeteras omedelbart
+- **Konceptenhet:** Enhet 6, `Result`, felmodellering och felpropagering
+- **Steg i inlärningsloopen:** Mental modell genomgången, förutsägelsefrågor är nästa steg
+- **Status:** Enhet 5 är avslutad och verifierad
+- **Repetition:** 6 öppna objekt, inget ska repeteras omedelbart
 
 ## Senast slutfört
 
@@ -36,14 +36,24 @@ Detta är projektets operativa återupptagningspunkt. Filen ska vara kort och up
 - Simulatorn använder `Option<u32>` för planerad success, explicita transition methods och en lånad `&mut Job` utan boolskt domäntillstånd eller sentinelvärdet `0`.
 - Tre tester täcker `Queued → Running → Queued`, success på attempt 2 och terminal failure. `cargo fmt --check`, `cargo check`, `cargo test` och `cargo run` passerar; den enda varningen är att `Cleanup` ännu inte konstrueras.
 - Enhet 4 uppfyller sitt avslutskriterium och är markerad som klar i roadmapen.
+- Enhet 5:s mentalmodell har introducerat hur `Vec<T>`, `VecDeque<T>` och `HashMap<K, V>` äger sina element, hur deras åtkomstmönster skiljer sig och hur `iter`, `iter_mut` och `into_iter` påverkar lån och ownership.
+- Enhet 5:s första fyra förutsägelsefrågor gav två klara svar, ett delvis korrekt svar och en missuppfattning. Delad iteration och konsumerande iteration förklarades korrekt; den kvarvarande luckan gäller att `iter_mut` lånar collectionen exklusivt och förhindrar samtidig strukturell mutation.
+- Det separata collection-labbet hoppades över efter svårighetskalibrering. Borrowingregeln prövas i stället genom projektinkrementets lån av jobb ur registret.
+- Första versionen av enhet 5:s projektinkrement har ett `HashMap`-register, en separat `VecDeque` i FIFO-ordning, delad iteration över ID:n och ett `next_queued` som returnerar ett mutabelt lån till ett fortsatt registerägt jobb.
+- `cargo fmt --check`, `cargo check`, sex tester och `cargo run` passerar; körningen ger det förväntade terminala Email-resultatet. `cargo check` och `cargo run` varnar för att `get` inte används i binary-flödet.
+- Granskningen fann att `submit` ännu inte returnerar det tilldelade ID:t, att testerna därför inte verifierar returkontraktet, samt att `next_queued` använder `?` före enhet 6 där operatorn introduceras.
+- Den uppdaterade implementationen returnerar och verifierar ettbaserade ID:n. Codex ersatte därefter `?` med explicit `match` och korrigerade FIFO-testets missvisande namn på Adams uttryckliga begäran.
+- Enhet 5:s slutversion passerar `cargo fmt --check`, `cargo check`, sex tester och `cargo run`. Den enda varningen är att `get` ännu inte används i binary-flödet.
+- Enhet 5 uppfyller sitt avslutskriterium: registret och kön har separata ansvar, delad iteration konsumerar inte kön, och jobb muteras genom lån utan kloner eller förlorat registerägarskap.
+- Enhet 6:s mentalmodell har introducerat `Result<T, E>`, skillnaden mellan frånvaro och fel, `?` som tidig retur samt gränsen mellan domänfel och brutna interna invarianter.
 
 ## Nästa konkreta handling
 
-Starta enhet 5 med mentalmodellen för collections och iteration: ägarskap av element i `Vec`, `VecDeque` och `HashMap`, åtkomstmönster, samt skillnaden mellan `iter`, `iter_mut` och konsumerande `into_iter`.
+Besvara enhet 6:s fyra första förutsägelsefrågor om `Option` kontra `Result`, ägarskap i `Ok` och `Err`, kontrollflödet för `?` samt klassificering av domänfel och brutna invarianter utan att köra koden.
 
 ## Aktuell lärdom
 
-En enum gör terminala och icke-terminala jobbtillstånd ömsesidigt uteslutande. Associated output och error ägs endast av de variants där datan är giltig, och `Option<u32>` uttrycker frånvarande successplan utan ett magiskt tal.
+`Result<T, E>` gör både framgångsvärdet och felinformationen explicita och ägda av varsin enumvariant. `?` packar upp `Ok`, men returnerar tidigt vid `Err`; `Option` ska användas för informationslös frånvaro, inte när anroparen behöver veta varför operationen misslyckades.
 
 ## Öppna frågor eller blockerare
 
