@@ -1,6 +1,52 @@
 use std::collections::{HashMap, VecDeque};
 
 // Structs
+enum JobOperation {
+    BeginAttempt,
+    CompleteSuccess,
+    CompleteFailure,
+}
+
+impl JobOperation {
+    fn as_str(&self) -> &'static str {
+        match self {
+            JobOperation::BeginAttempt => "begin attempt",
+            JobOperation::CompleteSuccess => "complete success",
+            JobOperation::CompleteFailure => "complete failure",
+        }
+    }
+}
+
+enum JobStateKind {
+    Queued,
+    Running,
+    Succeeded,
+    Failed,
+}
+
+impl JobStateKind {
+    fn as_str(&self) -> &'static str {
+        match self {
+            JobStateKind::Queued => "queued",
+            JobStateKind::Running => "running",
+            JobStateKind::Succeeded => "succeeded",
+            JobStateKind::Failed => "failed",
+        }
+    }
+}
+
+enum JobError {
+    QueueEmpty,
+    AttemptsExhausted {
+        completed_attempts: u32,
+        max_attempts: u32,
+    },
+    InvalidTransition {
+        operation: JobOperation,
+        from: JobStateKind,
+    },
+}
+
 enum JobKind {
     Email,
     Cleanup,
@@ -12,6 +58,18 @@ enum JobState {
     Succeeded { output: String },
     Failed { error: String },
 }
+
+impl JobState {
+    fn kind(&self) -> JobStateKind {
+        match self {
+            JobState::Queued => JobStateKind::Queued,
+            JobState::Running { .. } => JobStateKind::Running,
+            JobState::Succeeded { .. } => JobStateKind::Succeeded,
+            JobState::Failed { .. } => JobStateKind::Failed,
+        }
+    }
+}
+
 struct Job {
     kind: JobKind,
     payload: String,
@@ -52,36 +110,51 @@ impl Job {
         self.completed_attempts < self.max_attempts && valid_state
     }
 
-    fn try_begin_attempt(&mut self) -> Option<u32> {
+    fn try_begin_attempt(&mut self) -> Result<u32, JobError> {
         if matches!(&self.job_state, JobState::Queued) && self.can_attempt() {
             let attempt = self.completed_attempts + 1;
             self.job_state = JobState::Running { attempt };
-            Some(attempt)
+            Ok(attempt)
         } else {
-            None
+            if matches!(&self.job_state, JobState::Queued) {
+                return Err(JobError::AttemptsExhausted {
+                    completed_attempts: self.completed_attempts,
+                    max_attempts: self.max_attempts,
+                });
+            }
+            Err(JobError::InvalidTransition {
+                operation: JobOperation::BeginAttempt,
+                from: self.job_state.kind(),
+            })
         }
     }
-    fn complete_successful_attempt(&mut self, output: String) {
-        let attempt = match self.job_state {
-            JobState::Running { attempt } => attempt,
-            _ => panic!("Job must be running"),
-        };
-
-        self.completed_attempts = attempt;
-        self.job_state = JobState::Succeeded { output };
+    fn complete_successful_attempt(&mut self, output: String) -> Result<(), JobError> {
+        if let JobState::Running { attempt } = self.job_state {
+            self.completed_attempts = attempt;
+            self.job_state = JobState::Succeeded { output };
+            Ok(())
+        } else {
+            Err(JobError::InvalidTransition {
+                operation: JobOperation::CompleteSuccess,
+                from: self.job_state.kind(),
+            })
+        }
     }
 
-    fn complete_failed_attempt(&mut self, error: String) {
-        let attempt = match self.job_state {
-            JobState::Running { attempt } => attempt,
-            _ => panic!("Job must be running"),
-        };
-
-        self.completed_attempts = attempt;
-        if self.can_attempt() {
-            self.job_state = JobState::Queued;
+    fn complete_failed_attempt(&mut self, error: String) -> Result<(), JobError> {
+        if let JobState::Running { attempt } = self.job_state {
+            self.completed_attempts = attempt;
+            if self.can_attempt() {
+                self.job_state = JobState::Queued;
+            } else {
+                self.job_state = JobState::Failed { error };
+            }
+            Ok(())
         } else {
-            self.job_state = JobState::Failed { error };
+            Err(JobError::InvalidTransition {
+                operation: JobOperation::CompleteFailure,
+                from: self.job_state.kind(),
+            })
         }
     }
 }
@@ -114,17 +187,30 @@ impl JobServer {
         self.jobs.get(&job_id)
     }
 
-    fn next_queued(&mut self) -> Option<(u64, &mut Job)> {
-        let job_id = match self.queue.pop_front() {
+    fn next_queued(&mut self) -> Result<(u64, &mut Job), JobError> {
+        let job_id = match self.queue.front().copied() {
             Some(job_id) => job_id,
-            None => return None,
+            None => return Err(JobError::QueueEmpty),
         };
         let job = match self.jobs.get_mut(&job_id) {
             Some(job) => job,
-            None => return None,
+            None => panic!("Couldnt find job in queue with that job id"),
         };
 
-        Some((job_id, job))
+        Ok((job_id, job))
+    }
+
+    fn process_next(&mut self, succeeds_on_attempt: Option<u32>) -> Result<(u64, u32), JobError> {
+        let (job_id, next_job) = self.next_queued()?;
+
+        let tot_retry_delay = simulate_job(next_job, succeeds_on_attempt)?;
+
+        match self.queue.pop_front() {
+            Some(dequeued_job_id) if dequeued_job_id == job_id => {}
+            _ => panic!("Queue front changed while processing job"),
+        }
+
+        Ok((job_id, tot_retry_delay))
     }
 }
 
@@ -138,40 +224,64 @@ fn retry_delay_seconds(failed_attempt: u32) -> u32 {
     }
 }
 
-fn simulate_job(job: &mut Job, succeeds_on_attempt: Option<u32>) -> u32 {
+fn simulate_job(job: &mut Job, succeeds_on_attempt: Option<u32>) -> Result<u32, JobError> {
     let mut retry_sec = 0;
 
     loop {
-        let attempt = match job.try_begin_attempt() {
-            Some(attempt) => attempt,
-            None => return retry_sec,
-        };
+        let attempt = job.try_begin_attempt()?;
 
         retry_sec += retry_delay_seconds(job.completed_attempts());
 
         if succeeds_on_attempt == Some(attempt) {
-            job.complete_successful_attempt(String::from("completed"));
-            return retry_sec;
+            job.complete_successful_attempt(String::from("completed"))?;
+            return Ok(retry_sec);
         }
-        job.complete_failed_attempt(String::from("maximum attempts reached"));
+        job.complete_failed_attempt(String::from("maximum attempts reached"))?;
+
+        if matches!(job.state(), JobState::Failed { .. }) {
+            return Ok(retry_sec);
+        }
     }
 }
 
 // Main
 fn main() {
     let mut job_server = JobServer::new();
-    // Skicka in Email, "send-email", max attempts 3.
+
     job_server.submit(JobKind::Email, String::from("send-email"), 3);
-    // Skicka därefter in Cleanup, "cleanup", max attempts 1.
     job_server.submit(JobKind::Cleanup, String::from("cleanup"), 1);
-    // Välj nästa jobb.
-    // Kör det valda jobbet genom befintliga simulate_job med None.
-    let Some((_job_id, job)) = job_server.next_queued() else {
-        println!("No queued jobs");
-        return;
+
+    let (job_id, total_retry_delay_sec) = match job_server.process_next(None) {
+        Ok((job_id, tot_retry)) => (job_id, tot_retry),
+        Err(error) => match error {
+            JobError::AttemptsExhausted {
+                completed_attempts,
+                max_attempts,
+            } => {
+                eprintln!(
+                    "Job cannot start: {completed_attempts} of {max_attempts} attempts already completed"
+                );
+                return;
+            }
+            JobError::QueueEmpty => {
+                eprintln!("Queue empty, nothing to process");
+                return;
+            }
+            JobError::InvalidTransition { operation, from } => {
+                eprintln!(
+                    "Invalid transition: cannot {} from {} state",
+                    operation.as_str(),
+                    from.as_str()
+                );
+                return;
+            }
+        },
     };
-    // Behåll den nuvarande utskriften för det behandlade Email-jobbet.
-    let total_retry_delay_sec = simulate_job(job, None);
+
+    let job = match job_server.get(job_id) {
+        Some(job) => job,
+        None => panic!("job id didnt give a job in main"),
+    };
 
     let kind = match job.kind() {
         JobKind::Email => "email",
@@ -226,14 +336,17 @@ mod tests {
         assert_eq!(job.completed_attempts(), 0);
         // Anropa try_begin_attempt.
         // Kontrollera:
-        // returvärdet är Some(1),
-        assert!(matches!(job.try_begin_attempt(), Some(1)));
+        // returvärdet är Ok(1),
+        assert!(matches!(job.try_begin_attempt(), Ok(1)));
         // state är Running med attempt number 1,
         assert!(matches!(&job.job_state, JobState::Running { attempt: 1 }));
         // completed_attempts är fortfarande 0, eftersom attemptet bara har börjat.
         assert_eq!(job.completed_attempts(), 0);
         // Anropa sedan complete_failed_attempt med ett ägt error message.
-        job.complete_failed_attempt(String::from("failed"));
+        assert!(matches!(
+            job.complete_failed_attempt(String::from("failed")),
+            Ok(())
+        ));
         // Kontrollera:
         // state har gått tillbaka till Queued, eftersom två attempts återstår,
         assert!(matches!(&job.job_state, JobState::Queued));
@@ -246,7 +359,9 @@ mod tests {
         // Skapa ett nytt jobb med max attempts 3.
         let mut job: Job = Job::new(JobKind::Email, String::from("send-email"), 3);
         // Kör simulatorn med Some(2).
-        let tot_retry = simulate_job(&mut job, Some(2));
+        let Ok(tot_retry) = simulate_job(&mut job, Some(2)) else {
+            panic!("Expected simulation to succeed")
+        };
 
         // Kontrollera:
         // total retry delay är 1,
@@ -267,7 +382,9 @@ mod tests {
         // Skapa ett nytt jobb med max attempts 3.
         let mut job: Job = Job::new(JobKind::Email, String::from("send-email"), 3);
         // Kör simulatorn med None.
-        let tot_retry = simulate_job(&mut job, None);
+        let Ok(tot_retry) = simulate_job(&mut job, None) else {
+            panic!("Expected simulation to complete")
+        };
 
         // Kontrollera:
         // total retry delay är 6,
@@ -285,10 +402,10 @@ mod tests {
     }
 
     #[test]
-    fn new_empty_jobserver_return_none_for_get_and_next_queued() {
+    fn new_empty_jobserver_returns_none_for_get_and_queue_empty_for_next_queued() {
         let mut jobserver = JobServer::new();
         assert!(jobserver.get(1).is_none());
-        assert!(jobserver.next_queued().is_none());
+        assert!(matches!(jobserver.next_queued(), Err(JobError::QueueEmpty)));
     }
 
     #[test]
@@ -329,7 +446,7 @@ mod tests {
     }
 
     #[test]
-    fn next_queued_returns_jobs_in_fifo_order_and_keeps_them_registered() {
+    fn next_queued_peeks_at_front_job_without_removing_it() {
         let mut jobserver = JobServer::new();
 
         let first_id = jobserver.submit(JobKind::Email, String::from("send-email"), 3);
@@ -340,37 +457,176 @@ mod tests {
         assert_eq!(second_id, 2);
 
         {
-            let (job_id, job) = jobserver
-                .next_queued()
-                .expect("first queued job should exist");
+            let Ok((job_id, job)) = jobserver.next_queued() else {
+                panic!("Expected first queued job to exist")
+            };
 
-            assert_eq!(job_id, 1);
+            assert_eq!(job_id, first_id);
             assert_eq!(job.payload(), "send-email");
-            assert_eq!(job.try_begin_attempt(), Some(1));
         }
 
-        // Det muterbara lånet ovan har upphört. Samma jobb finns kvar
-        // i registret och förändringen kan observeras genom get().
-        let first_job = jobserver.get(1).expect("job 1 should remain registered");
+        let queued_ids: Vec<u64> = jobserver.queue.iter().copied().collect();
+        assert_eq!(queued_ids, vec![first_id, second_id]);
+
+        let Ok((peeked_again_id, peeked_again_job)) = jobserver.next_queued() else {
+            panic!("Expected front job to remain queued")
+        };
+        assert_eq!(peeked_again_id, first_id);
+        assert_eq!(peeked_again_job.payload(), "send-email");
+        assert!(jobserver.get(first_id).is_some());
+        assert!(jobserver.get(second_id).is_some());
+    }
+
+    #[test]
+    fn queued_job_with_zero_max_attempts_returns_attempts_exhausted_without_mutation() {
+        let mut job = Job::new(JobKind::Email, String::from("send-email"), 0);
+
+        let res = job.try_begin_attempt();
 
         assert!(matches!(
-            first_job.state(),
-            JobState::Running { attempt: 1 }
+            res,
+            Err(JobError::AttemptsExhausted {
+                completed_attempts: 0,
+                max_attempts: 0
+            })
         ));
 
-        {
-            let (job_id, job) = jobserver
-                .next_queued()
-                .expect("second queued job should exist");
+        assert!(matches!(job.state(), JobState::Queued));
 
-            assert_eq!(job_id, 2);
-            assert_eq!(job.payload(), "cleanup");
+        assert_eq!(job.completed_attempts(), 0);
+    }
+
+    #[test]
+    fn running_job_cannot_begin_another_attempt_and_remains_unchanged() {
+        let mut job = Job::new(JobKind::Email, String::from("send-email"), 3);
+        assert!(matches!(job.try_begin_attempt(), Ok(1)));
+
+        let result = job.try_begin_attempt();
+
+        assert!(matches!(
+            result,
+            Err(JobError::InvalidTransition {
+                operation: JobOperation::BeginAttempt,
+                from: JobStateKind::Running,
+            })
+        ));
+        assert!(matches!(job.state(), JobState::Running { attempt: 1 }));
+        assert_eq!(job.completed_attempts(), 0);
+    }
+
+    #[test]
+    fn queued_job_cannot_complete_successfully_and_remains_unchanged() {
+        let mut job = Job::new(JobKind::Email, String::from("send-email"), 3);
+
+        let result = job.complete_successful_attempt(String::from("completed"));
+
+        assert!(matches!(
+            result,
+            Err(JobError::InvalidTransition {
+                operation: JobOperation::CompleteSuccess,
+                from: JobStateKind::Queued,
+            })
+        ));
+        assert!(matches!(job.state(), JobState::Queued));
+        assert_eq!(job.completed_attempts(), 0);
+    }
+
+    #[test]
+    fn queued_job_cannot_complete_with_failure_and_remains_unchanged() {
+        let mut job = Job::new(JobKind::Email, String::from("send-email"), 3);
+
+        let result = job.complete_failed_attempt(String::from("failed"));
+
+        assert!(matches!(
+            result,
+            Err(JobError::InvalidTransition {
+                operation: JobOperation::CompleteFailure,
+                from: JobStateKind::Queued,
+            })
+        ));
+        assert!(matches!(job.state(), JobState::Queued));
+        assert_eq!(job.completed_attempts(), 0);
+    }
+
+    #[test]
+    fn process_next_processes_jobs_in_fifo_order() {
+        let mut jobserver = JobServer::new();
+        let first_id = jobserver.submit(JobKind::Email, String::from("send-email"), 3);
+        let second_id = jobserver.submit(JobKind::Cleanup, String::from("cleanup"), 1);
+
+        let Ok((processed_first_id, first_delay)) = jobserver.process_next(Some(1)) else {
+            panic!("Expected first queued job to be processed")
+        };
+
+        assert_eq!(processed_first_id, first_id);
+        assert_eq!(first_delay, 0);
+        {
+            let first_job = jobserver
+                .get(first_id)
+                .expect("first processed job should remain registered");
+            assert_eq!(first_job.completed_attempts(), 1);
+            assert!(matches!(
+                first_job.state(),
+                JobState::Succeeded { output } if output == "completed"
+            ));
         }
 
-        assert!(jobserver.next_queued().is_none());
+        let Ok((processed_second_id, second_delay)) = jobserver.process_next(None) else {
+            panic!("Expected second queued job to be processed")
+        };
 
-        // Kön är tom, men jobben finns fortfarande i registret.
-        assert!(jobserver.get(1).is_some());
-        assert!(jobserver.get(2).is_some());
+        assert_eq!(processed_second_id, second_id);
+        assert_eq!(second_delay, 0);
+        let second_job = jobserver
+            .get(second_id)
+            .expect("second processed job should remain registered");
+        assert_eq!(second_job.completed_attempts(), 1);
+        assert!(matches!(
+            second_job.state(),
+            JobState::Failed { error } if error == "maximum attempts reached"
+        ));
+    }
+
+    #[test]
+    fn process_next_returns_queue_empty_when_no_job_is_queued() {
+        let mut jobserver = JobServer::new();
+
+        let result = jobserver.process_next(None);
+
+        assert!(matches!(result, Err(JobError::QueueEmpty)));
+        assert!(jobserver.get(1).is_none());
+    }
+
+    #[test]
+    fn process_next_keeps_front_job_queued_when_simulation_returns_error() {
+        let mut jobserver = JobServer::new();
+        let first_id = jobserver.submit(JobKind::Email, String::from("send-email"), 0);
+        let second_id = jobserver.submit(JobKind::Cleanup, String::from("cleanup"), 1);
+
+        let result = jobserver.process_next(None);
+
+        assert!(matches!(
+            result,
+            Err(JobError::AttemptsExhausted {
+                completed_attempts: 0,
+                max_attempts: 0,
+            })
+        ));
+        let queued_ids: Vec<u64> = jobserver.queue.iter().copied().collect();
+        assert_eq!(queued_ids, vec![first_id, second_id]);
+        let first_job = jobserver
+            .get(first_id)
+            .expect("failed processing job should remain registered");
+        assert!(matches!(first_job.state(), JobState::Queued));
+        assert_eq!(first_job.completed_attempts(), 0);
+    }
+
+    #[test]
+    #[should_panic(expected = "Couldnt find job in queue with that job id")]
+    fn next_queued_panics_when_queue_references_missing_registry_job() {
+        let mut jobserver = JobServer::new();
+        jobserver.queue.push_back(7);
+
+        let _ = jobserver.next_queued();
     }
 }

@@ -4,11 +4,11 @@
 
 | Mått | Antal |
 |---|---:|
-| Förutsägelsefrågor besvarade | 36 |
-| Klara vid första försöket | 22 |
+| Förutsägelsefrågor besvarade | 40 |
+| Klara vid första försöket | 26 |
 | Delvis korrekta | 10 |
 | Missuppfattningar | 4 |
-| Öppna repetitionsobjekt | 6 |
+| Öppna repetitionsobjekt | 7 |
 | Förstärkta repetitionsobjekt | 0 |
 | Stabila repetitionsobjekt | 0 |
 | Återkommande missuppfattningar | 0 |
@@ -188,3 +188,31 @@ Mutation av ett element genom `&mut T` och en samtidig strukturell mutation geno
 |---|---|---|---|
 | 2026-08-17 | Ursprunglig förutsägelse | Missuppfattning | Samtidig elementmutation och strukturell mutation bedömdes kompilera |
 | 2026-08-17 | Omedelbar relaterad tillämpning i projektinkrement | Korrekt avgränsning av ett mutabelt lån från `next_queued`; exakt `iter_mut`-konflikt återtestades inte, status lämnas öppen | Ett explicit block avslutar `&mut Job` innan `JobServer::get` och nästa `next_queued` |
+
+## F1-U6-001: Domänfel ska hanteras vid application boundary
+
+- **Enhet:** 6
+- **Kategori:** Felmodellering och tillämpning
+- **Status:** Öppen
+- **Ursprung:** Slutgranskning av enhet 6:s projektinkrement
+- **Nästa tillfälle:** Omedelbar refaktorering i enhet 6, därefter naturlig återkallning under enhet 7
+- **Ska repeteras nu:** Nej
+
+### Observerad modell
+
+`main` hanterar `AttemptsExhausted` som ett returnerat domänfel men samlar övriga `JobError` i en wildcard-gren som panikerar. Därmed behandlas även legitima `QueueEmpty` och `InvalidTransition` som brutna interna invarianter, och deras associerade data läses inte i binary-flödet.
+
+### Korrekt modell
+
+Application boundary ska skilja samtliga legitima domänfel och välja ett kontrollerat svar, här utskrift till stderr och normal tidig retur. Panic reserveras för den separata kö/register-invarianten där ett privat kö-ID saknar motsvarande registerjobb. En exhaustive `match` gör dessutom att nya felvarianter inte kan införas utan ett medvetet boundary-beslut.
+
+### Framtida återkallningsfrågor
+
+1. Varför ska `main` hantera `QueueEmpty` och `InvalidTransition` explicit, medan ett kö-ID utan registerjobb kan motivera panic?
+
+### Historik
+
+| Datum | Sammanhang | Resultat | Evidens |
+|---|---|---|---|
+| 2026-08-18 | Projektgranskning | Theory-to-application-gap | `AttemptsExhausted` hanteras, men övriga `JobError` går till wildcard-panic |
+| 2026-08-18 | Omedelbar refaktorering | Korrekt, status lämnas öppen till senare återkallning | `main` hanterar alla `JobError` exhaustively, använder associerad data och panikerar endast vid den separata kö/register-invarianten |

@@ -5,10 +5,10 @@ Detta är projektets operativa återupptagningspunkt. Filen ska vara kort och up
 ## Nuvarande position
 
 - **Fas:** Fas 1, Rust som språk
-- **Konceptenhet:** Enhet 6, `Result`, felmodellering och felpropagering
-- **Steg i inlärningsloopen:** Mental modell genomgången, förutsägelsefrågor är nästa steg
-- **Status:** Enhet 5 är avslutad och verifierad
-- **Repetition:** 6 öppna objekt, inget ska repeteras omedelbart
+- **Konceptenhet:** Enhet 6 avslutad; enhet 7 är nästa
+- **Steg i inlärningsloopen:** Mellan enheter; enhet 7 är inte påbörjad
+- **Status:** Enhet 6 är avslutad och verifierad
+- **Repetition:** 7 öppna objekt, inget ska repeteras omedelbart
 
 ## Senast slutfört
 
@@ -46,14 +46,30 @@ Detta är projektets operativa återupptagningspunkt. Filen ska vara kort och up
 - Enhet 5:s slutversion passerar `cargo fmt --check`, `cargo check`, sex tester och `cargo run`. Den enda varningen är att `get` ännu inte används i binary-flödet.
 - Enhet 5 uppfyller sitt avslutskriterium: registret och kön har separata ansvar, delad iteration konsumerar inte kön, och jobb muteras genom lån utan kloner eller förlorat registerägarskap.
 - Enhet 6:s mentalmodell har introducerat `Result<T, E>`, skillnaden mellan frånvaro och fel, `?` som tidig retur samt gränsen mellan domänfel och brutna interna invarianter.
+- Enhet 6:s fyra första förutsägelsefrågor besvarades klart. `Option` valdes utifrån ett explorativt kontrakt, moves ur `Result` följdes korrekt, `?` förklarades som tidig retur och ett saknat registerjobb bakom ett privat kö-ID klassificerades korrekt som en bruten invariant.
+- Ett separat mikrolabb hoppas över eftersom svaren visar tillräcklig förståelse; `Result`, `?` och felklassificeringen prövas direkt i projektinkrementet.
+- Enhet 6-implementationen har infört `JobOperation`, `JobStateKind`, `JobError`, `Result`-baserade transition methods, `next_queued`, `process_next` och ett omskrivet `main`; verifiering och testanpassning återstår.
+- Adam implementerar ett enda diagnostiskt test för ett köat jobb med `max_attempts = 0`. Codex implementerar övriga överenskomna tester efter att detta test har granskats.
+- Adams boundary-test matchar rätt `AttemptsExhausted`-variant och verifierar att state samt counter förblir oförändrade; Codex lade till det saknade `#[test]`-attributet och anpassade samtliga äldre tester till de nya `Result`-kontrakten.
+- `cargo fmt --check` och `cargo check` passerar. Fem av sju tester passerar; failure-simuleringen och noll-attempt-testet exponerar två produktionsfel. Tre dead-code-varningar kvarstår för ännu oanvänd feldata.
+- Adam korrigerade noll-attempt-klassificeringen och simulatorns terminala failure-avslut; de tidigare två felande testerna passerar nu.
+- Codex lade till de sex återstående Unit 6-testerna för upprepat begin, ogiltiga completion-transitioner, FIFO genom `process_next`, tom process-kö och den avsiktliga kö/register-invariantpaniken.
+- `cargo fmt --check` och `cargo check` passerar. Elva av tretton tester passerar; success- och failure-completion från `Queued` panikerar fortfarande i stället för att returnera `InvalidTransition`. Två binary-varningar kvarstår för feldata som ännu inte läses i `main`.
+- Adam korrigerade båda completion methods så att `Queued` ger `InvalidTransition` utan mutation. `cargo fmt --check`, `cargo check`, alla tretton tester och `cargo run` passerar; körningen ger det förväntade terminala Email-resultatet med delay 6.
+- Slutgranskningen fann tre kvarvarande kvalitetsfrågor: `main` panikerar på legitima `QueueEmpty` och `InvalidTransition`, `process_next` tar bort kö-ID:t innan en fallibel simulering och kan därför lämna ett `Queued` jobb utanför kön, samt state-till-kind-mappningen är duplicerad i stället för centraliserad. Binary-builden varnar därför fortfarande för oläst feldata.
+- Codex färdigställde på Adams begäran exhaustive `JobError`-hantering i `main`, lade till textrepresentationer för operation och state kind samt centraliserade den ägda state-discriminanten i `JobState::kind`. Kösemantiken ändrades inte.
+- `cargo fmt --check`, `cargo check`, alla tretton tester och `cargo run` passerar utan varningar; körningen ger det förväntade terminala Email-resultatet med delay 6.
+- `next_queued` observerar nu front-ID:t med `VecDeque::front` utan att ta bort det. `process_next` tar bort ID:t först efter lyckad simulering, så ett returnerat fel lämnar både jobb och kö konsistenta.
+- Ett regressionstest verifierar att ett misslyckat `process_next` behåller jobbet längst fram. `cargo fmt --check`, `cargo check`, samtliga fjorton tester, `cargo run` och `cargo clippy --all-targets --all-features` passerar utan varningar.
+- Enhet 6 uppfyller sitt avslutskriterium: domänfel modelleras som data, `?` propagerar fel utan att förlora kö/state-konsistens och brutna privata invarianter skiljs från legitima felresultat.
 
 ## Nästa konkreta handling
 
-Besvara enhet 6:s fyra första förutsägelsefrågor om `Option` kontra `Result`, ägarskap i `Ok` och `Err`, kontrollflödet för `?` samt klassificering av domänfel och brutna invarianter utan att köra koden.
+Börja enhet 7 med att rekonstruera den synkrona kärnans ownership-, state- och error-modell och därefter granska helheten mot fasens utgångskriterium.
 
 ## Aktuell lärdom
 
-`Result<T, E>` gör både framgångsvärdet och felinformationen explicita och ägda av varsin enumvariant. `?` packar upp `Ok`, men returnerar tidigt vid `Err`; `Option` ska användas för informationslös frånvaro, inte när anroparen behöver veta varför operationen misslyckades.
+När en fallibel operation använder en kö som arbetslista ska borttagning ske vid den uttryckliga commit-punkten. Att först observera fronten och endast ta bort den efter framgång gör att `Err` lämnar datastrukturerna konsistenta.
 
 ## Öppna frågor eller blockerare
 
