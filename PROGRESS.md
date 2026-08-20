@@ -4,11 +4,11 @@ Detta är projektets operativa återupptagningspunkt. Filen ska vara kort och up
 
 ## Nuvarande position
 
-- **Fas:** Fas 1, Rust som språk
-- **Konceptenhet:** Enhet 6 avslutad; enhet 7 är nästa
-- **Steg i inlärningsloopen:** Mellan enheter; enhet 7 är inte påbörjad
-- **Status:** Enhet 6 är avslutad och verifierad
-- **Repetition:** 7 öppna objekt, inget ska repeteras omedelbart
+- **Fas:** Fas 1 avslutad; Fas 2 är nästa men inte påbörjad
+- **Konceptenhet:** Enhet 7, konsolidering av den synkrona kärnan, avslutad
+- **Steg i inlärningsloopen:** Fasens kvalitetsgrind verifierad
+- **Status:** Enhet 7 och Fas 1 är avslutade
+- **Repetition:** 3 öppna och 4 förstärkta objekt, inget ska repeteras omedelbart
 
 ## Senast slutfört
 
@@ -62,14 +62,21 @@ Detta är projektets operativa återupptagningspunkt. Filen ska vara kort och up
 - `next_queued` observerar nu front-ID:t med `VecDeque::front` utan att ta bort det. `process_next` tar bort ID:t först efter lyckad simulering, så ett returnerat fel lämnar både jobb och kö konsistenta.
 - Ett regressionstest verifierar att ett misslyckat `process_next` behåller jobbet längst fram. `cargo fmt --check`, `cargo check`, samtliga fjorton tester, `cargo run` och `cargo clippy --all-targets --all-features` passerar utan varningar.
 - Enhet 6 uppfyller sitt avslutskriterium: domänfel modelleras som data, `?` propagerar fel utan att förlora kö/state-konsistens och brutna privata invarianter skiljs från legitima felresultat.
+- Enhet 7:s mentalmodell rekonstruerar kärnan som en ägarhierarki, en tillståndsmaskin och ett felprotokoll. Fyra frågor prövar borrowing, partial moves, exklusiv collection-iteration och exhaustive error handling.
+- Enhet 7:s fyra konsolideringsfrågor gav två klara svar och två kvarvarande borrowingluckor. Partial moves och wildcard-armens effekt på exhaustive error handling återkallades korrekt; lån härledda ur `&mut JobServer` och `iter_mut`-iteratorns exklusiva collectionlån behöver senare tillämpning.
+- Adam implementerade cancellation och testet för det mittersta köade jobbet. Borrowing mellan köiteration, job mutation och strukturell kömutation är korrekt avgränsad och förstärker två reviewobjekt.
+- `cargo fmt --check` passerar. `cargo check`, samtliga femton tester och `cargo run` slutförs, men build och körning har dead-code-varningar eftersom cancellation inte används i binary-flödet. Granskningen fann även felaktig valideringsordning och saknade state/reason-assertions i testet.
+- Codex korrigerade på Adams begäran den fullständiga cancellation-valideringen och kompletterade det befintliga testet med ID-, `get`-, `Cancelled`- och reason-assertions. `cargo fmt --check` och samtliga femton tester passerar; `cargo check`, `cargo run` och Clippy slutförs med fem dead-code-varningar tills cancellation används i `main`.
+- Codex integrerade på Adams begäran cancellation i binary-flödet, centraliserade exhaustive `JobError`-rapportering och lade till sju tester för `JobNotFound`, `InvalidTransition`, terminal cancellation och fyra brutna kö/register-invarianter.
+- Unit 7:s och Fas 1:s slutversion passerar `cargo fmt --check`, `cargo check`, samtliga tjugotvå tester, `cargo run` och `cargo clippy --all-targets --all-features` utan varningar. Unit 7 och Fas 1 uppfyller sina avslutskriterier.
 
 ## Nästa konkreta handling
 
-Börja enhet 7 med att rekonstruera den synkrona kärnans ownership-, state- och error-modell och därefter granska helheten mot fasens utgångskriterium.
+När Adam vill fortsätta: planera Fas 2:s första enhet utifrån roadmapen och evidensen från Fas 1; Fas 2 ska inte påbörjas innan dess.
 
 ## Aktuell lärdom
 
-När en fallibel operation använder en kö som arbetslista ska borttagning ske vid den uttryckliga commit-punkten. Att först observera fronten och endast ta bort den efter framgång gör att `Err` lämnar datastrukturerna konsistenta.
+Den synkrona kärnan har en tydlig ägarhierarki: registret äger jobben, kön äger kopierbara ID:n, transition methods skyddar state och application boundary hanterar legitima `JobError` exhaustively. Panic används endast för brutna privata invarianter.
 
 ## Öppna frågor eller blockerare
 

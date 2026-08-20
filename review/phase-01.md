@@ -4,12 +4,12 @@
 
 | Mått | Antal |
 |---|---:|
-| Förutsägelsefrågor besvarade | 40 |
-| Klara vid första försöket | 26 |
+| Förutsägelsefrågor besvarade | 44 |
+| Klara vid första försöket | 28 |
 | Delvis korrekta | 10 |
-| Missuppfattningar | 4 |
-| Öppna repetitionsobjekt | 7 |
-| Förstärkta repetitionsobjekt | 0 |
+| Missuppfattningar | 6 |
+| Öppna repetitionsobjekt | 3 |
+| Förstärkta repetitionsobjekt | 4 |
 | Stabila repetitionsobjekt | 0 |
 | Återkommande missuppfattningar | 0 |
 
@@ -110,9 +110,9 @@ Tupletypen i exemplet är `(u64, bool, u32)`. En arraytyp skrivs `[T; N]`, där 
 
 - **Enhet:** 2
 - **Kategori:** Ownership
-- **Status:** Öppen
+- **Status:** Förstärkt
 - **Ursprung:** Förutsägelsefråga 6
-- **Nästa tillfälle:** Naturlig användning av struct update syntax, annars under fasens konsolidering
+- **Nästa tillfälle:** Nästa naturliga tillämpning av partial moves efter enhet 7
 - **Ska repeteras nu:** Nej
 
 ### Observerad modell
@@ -132,14 +132,15 @@ Struct update syntax klonar inte hela ursprungsvärdet. Fält som inte anges exp
 | Datum | Sammanhang | Resultat | Evidens |
 |---|---|---|---|
 | 2026-08-14 | Ursprunglig förutsägelse | Delvis korrekt | Första utskriften bedömdes implicit rätt, men det flyttade `String`-fältet bedömdes fortfarande som användbart |
+| 2026-08-19 | Fördröjd återkallning under enhet 7 | Korrekt | Identifierade att explicit `max_attempts` finns kvar medan `payload` flyttas genom struct update |
 
 ## F1-U3-001: Ett lån äger inte den lånade datan
 
 - **Enhet:** 3
 - **Kategori:** Borrowing
-- **Status:** Öppen
+- **Status:** Förstärkt
 - **Ursprung:** Förutsägelsefråga 4
-- **Nästa tillfälle:** Naturlig tillämpning av `&self` och `&mut self` i enhet 3:s projektinkrement
+- **Nästa tillfälle:** Nästa naturliga tillämpning av ett lån som överlever över en senare mutation
 - **Ska repeteras nu:** Nej
 
 ### Observerad modell
@@ -160,14 +161,16 @@ Bindningen `view` innehåller ett referensvärde men äger inte strängens bytes
 |---|---|---|---|
 | 2026-08-15 | Ursprunglig förutsägelse | Delvis korrekt | Compile-resultatet identifierades, men lånet beskrevs som en ownershipöverföring |
 | 2026-08-15 | Projektinkrement | Korrekt omedelbar tillämpning, status lämnas öppen till senare återkallning | `payload(&self) -> &str`, `record_attempt(&mut self)` och `simulate_job(&mut Job, ...)` skiljer observerande och muterande lån utan ownershipöverföring |
+| 2026-08-19 | Fördröjd återkallning under enhet 7 | Missuppfattning | Ett `&str` som fortfarande används efter `submit` bedömdes inte hålla det serverhärledda lånet aktivt över ett nytt `&mut JobServer`-lån |
+| 2026-08-20 | Självständig tillämpning i enhet 7 | Korrekt | Cancellation-implementationen materialiserar köresultatet som ägd data och låter det mutabla jobblånet upphöra före den efterföljande kömutationen |
 
 ## F1-U5-001: `iter_mut` lånar collectionen exklusivt
 
 - **Enhet:** 5
 - **Kategori:** Borrowing och iteration
-- **Status:** Öppen
+- **Status:** Förstärkt
 - **Ursprung:** Förutsägelsefråga 3
-- **Nästa tillfälle:** Naturlig tillämpning under enhet 5:s projektinkrement; det separata mikrolabbet hoppades över efter svårighetskalibrering
+- **Nästa tillfälle:** Nästa naturliga strukturella mutation under aktiv iteration
 - **Ska repeteras nu:** Nej
 
 ### Observerad modell
@@ -188,14 +191,16 @@ Mutation av ett element genom `&mut T` och en samtidig strukturell mutation geno
 |---|---|---|---|
 | 2026-08-17 | Ursprunglig förutsägelse | Missuppfattning | Samtidig elementmutation och strukturell mutation bedömdes kompilera |
 | 2026-08-17 | Omedelbar relaterad tillämpning i projektinkrement | Korrekt avgränsning av ett mutabelt lån från `next_queued`; exakt `iter_mut`-konflikt återtestades inte, status lämnas öppen | Ett explicit block avslutar `&mut Job` innan `JobServer::get` och nästa `next_queued` |
+| 2026-08-19 | Fördröjd återkallning under enhet 7 | Kunde inte återkallas | Skillnaden mellan elementmutation genom iteratorns befintliga lån och ett andra strukturellt `&mut VecDeque`-lån kunde inte förklaras |
+| 2026-08-20 | Självständig tillämpning i enhet 7 | Korrekt | `queue.iter()` avslutas genom `collect` innan `queue.remove` utför den strukturella mutationen; inga överlappande collectionlån skapas |
 
 ## F1-U6-001: Domänfel ska hanteras vid application boundary
 
 - **Enhet:** 6
 - **Kategori:** Felmodellering och tillämpning
-- **Status:** Öppen
+- **Status:** Förstärkt
 - **Ursprung:** Slutgranskning av enhet 6:s projektinkrement
-- **Nästa tillfälle:** Omedelbar refaktorering i enhet 6, därefter naturlig återkallning under enhet 7
+- **Nästa tillfälle:** Nästa naturliga ändring av `JobError` eller application boundary
 - **Ska repeteras nu:** Nej
 
 ### Observerad modell
@@ -216,3 +221,4 @@ Application boundary ska skilja samtliga legitima domänfel och välja ett kontr
 |---|---|---|---|
 | 2026-08-18 | Projektgranskning | Theory-to-application-gap | `AttemptsExhausted` hanteras, men övriga `JobError` går till wildcard-panic |
 | 2026-08-18 | Omedelbar refaktorering | Korrekt, status lämnas öppen till senare återkallning | `main` hanterar alla `JobError` exhaustively, använder associerad data och panikerar endast vid den separata kö/register-invarianten |
+| 2026-08-19 | Fördröjd återkallning under enhet 7 | Korrekt | Förklarade att wildcard-armen fångar även framtida felvarianter och därför hindrar kompilatorn från att kräva ett nytt boundary-beslut |

@@ -5,6 +5,7 @@ enum JobOperation {
     BeginAttempt,
     CompleteSuccess,
     CompleteFailure,
+    Cancel,
 }
 
 impl JobOperation {
@@ -13,6 +14,7 @@ impl JobOperation {
             JobOperation::BeginAttempt => "begin attempt",
             JobOperation::CompleteSuccess => "complete success",
             JobOperation::CompleteFailure => "complete failure",
+            JobOperation::Cancel => "cancel",
         }
     }
 }
@@ -22,6 +24,7 @@ enum JobStateKind {
     Running,
     Succeeded,
     Failed,
+    Cancelled,
 }
 
 impl JobStateKind {
@@ -31,6 +34,7 @@ impl JobStateKind {
             JobStateKind::Running => "running",
             JobStateKind::Succeeded => "succeeded",
             JobStateKind::Failed => "failed",
+            JobStateKind::Cancelled => "cancelled",
         }
     }
 }
@@ -45,6 +49,9 @@ enum JobError {
         operation: JobOperation,
         from: JobStateKind,
     },
+    JobNotFound {
+        job_id: u64,
+    },
 }
 
 enum JobKind {
@@ -57,6 +64,7 @@ enum JobState {
     Running { attempt: u32 },
     Succeeded { output: String },
     Failed { error: String },
+    Cancelled { reason: String },
 }
 
 impl JobState {
@@ -66,6 +74,7 @@ impl JobState {
             JobState::Running { .. } => JobStateKind::Running,
             JobState::Succeeded { .. } => JobStateKind::Succeeded,
             JobState::Failed { .. } => JobStateKind::Failed,
+            JobState::Cancelled { .. } => JobStateKind::Cancelled,
         }
     }
 }
@@ -157,6 +166,17 @@ impl Job {
             })
         }
     }
+    fn cancel(&mut self, reason: String) -> Result<(), JobError> {
+        if let JobState::Queued = self.job_state {
+            self.job_state = JobState::Cancelled { reason };
+            Ok(())
+        } else {
+            Err(JobError::InvalidTransition {
+                operation: JobOperation::Cancel,
+                from: self.job_state.kind(),
+            })
+        }
+    }
 }
 
 struct JobServer {
@@ -212,6 +232,55 @@ impl JobServer {
 
         Ok((job_id, tot_retry_delay))
     }
+    fn cancel(&mut self, job_id: u64, reason: String) -> Result<(), JobError> {
+        let matching_indices: Vec<usize> = self
+            .queue
+            .iter()
+            .enumerate()
+            .filter(|entry| *entry.1 == job_id)
+            .map(|entry| entry.0)
+            .collect();
+
+        let state_kind = match self.jobs.get(&job_id) {
+            Some(job) => job.state().kind(),
+            None if matching_indices.is_empty() => {
+                return Err(JobError::JobNotFound { job_id });
+            }
+            None => panic!("Queue references missing registry job"),
+        };
+
+        let queue_index = match state_kind {
+            JobStateKind::Queued => {
+                if matching_indices.len() != 1 {
+                    panic!("Queued job must appear exactly once in queue");
+                }
+                matching_indices[0]
+            }
+            from => {
+                if !matching_indices.is_empty() {
+                    panic!("Non-queued job must not appear in queue");
+                }
+                return Err(JobError::InvalidTransition {
+                    operation: JobOperation::Cancel,
+                    from,
+                });
+            }
+        };
+
+        let job_to_cancel = self
+            .jobs
+            .get_mut(&job_id)
+            .expect("Validated job must remain in registry");
+
+        job_to_cancel.cancel(reason)?;
+
+        match self.queue.remove(queue_index) {
+            Some(removed_job_id) if removed_job_id == job_id => {}
+            _ => panic!("Queue changed while cancelling job"),
+        }
+
+        Ok(())
+    }
 }
 
 // Functions
@@ -244,38 +313,50 @@ fn simulate_job(job: &mut Job, succeeds_on_attempt: Option<u32>) -> Result<u32, 
     }
 }
 
+fn report_job_error(error: JobError) {
+    match error {
+        JobError::AttemptsExhausted {
+            completed_attempts,
+            max_attempts,
+        } => {
+            eprintln!(
+                "Job cannot start: {completed_attempts} of {max_attempts} attempts already completed"
+            );
+        }
+        JobError::QueueEmpty => {
+            eprintln!("Queue empty, nothing to process");
+        }
+        JobError::InvalidTransition { operation, from } => {
+            eprintln!(
+                "Invalid transition: cannot {} from {} state",
+                operation.as_str(),
+                from.as_str()
+            );
+        }
+        JobError::JobNotFound { job_id } => {
+            eprintln!("Job not found, job id: {job_id}");
+        }
+    }
+}
+
 // Main
 fn main() {
     let mut job_server = JobServer::new();
 
     job_server.submit(JobKind::Email, String::from("send-email"), 3);
-    job_server.submit(JobKind::Cleanup, String::from("cleanup"), 1);
+    let cleanup_id = job_server.submit(JobKind::Cleanup, String::from("cleanup"), 1);
+
+    if let Err(error) = job_server.cancel(cleanup_id, String::from("operator request")) {
+        report_job_error(error);
+        return;
+    }
 
     let (job_id, total_retry_delay_sec) = match job_server.process_next(None) {
         Ok((job_id, tot_retry)) => (job_id, tot_retry),
-        Err(error) => match error {
-            JobError::AttemptsExhausted {
-                completed_attempts,
-                max_attempts,
-            } => {
-                eprintln!(
-                    "Job cannot start: {completed_attempts} of {max_attempts} attempts already completed"
-                );
-                return;
-            }
-            JobError::QueueEmpty => {
-                eprintln!("Queue empty, nothing to process");
-                return;
-            }
-            JobError::InvalidTransition { operation, from } => {
-                eprintln!(
-                    "Invalid transition: cannot {} from {} state",
-                    operation.as_str(),
-                    from.as_str()
-                );
-                return;
-            }
-        },
+        Err(error) => {
+            report_job_error(error);
+            return;
+        }
     };
 
     let job = match job_server.get(job_id) {
@@ -315,6 +396,14 @@ fn main() {
                 "kind: {kind}, payload: {}, completed attempts: {}, state: failed, error: {error}, total retry delay: {total_retry_delay_sec}",
                 job.payload(),
                 job.completed_attempts(),
+            );
+        }
+        JobState::Cancelled { reason } => {
+            println!(
+                "kind: {kind}, payload: {}, completed attempts: {}, state: cancelled, reason: {}, total retry delay: {total_retry_delay_sec}",
+                job.payload(),
+                job.completed_attempts(),
+                reason
             );
         }
     }
@@ -628,5 +717,164 @@ mod tests {
         jobserver.queue.push_back(7);
 
         let _ = jobserver.next_queued();
+    }
+    #[test]
+    fn cancelling_middle_queued_job_preserves_fifo_and_keeps_job_registered() {
+        let mut jobserver = JobServer::new();
+
+        let first_id = jobserver.submit(JobKind::Email, String::from("send-email"), 0);
+        let second_id = jobserver.submit(JobKind::Cleanup, String::from("cleanup1"), 1);
+        let third_id = jobserver.submit(JobKind::Cleanup, String::from("cleanup2"), 1);
+
+        assert_eq!(first_id, 1);
+        assert_eq!(second_id, 2);
+        assert_eq!(third_id, 3);
+
+        let res = jobserver.cancel(second_id, String::from("operator request"));
+
+        assert!(res.is_ok());
+
+        assert_eq!(jobserver.queue, VecDeque::from([first_id, third_id]));
+
+        let job = jobserver.get(second_id).expect("job 2 should still exist");
+
+        assert_eq!(job.completed_attempts(), 0);
+        assert!(matches!(
+            job.state(),
+            JobState::Cancelled { reason } if reason == "operator request"
+        ));
+
+        for job_id in [first_id, third_id] {
+            let job = jobserver.get(job_id).expect("Job should exist");
+
+            assert!(
+                matches!(job.state(), JobState::Queued),
+                "Job {job_id} should be Queued"
+            );
+        }
+    }
+
+    #[test]
+    fn cancel_returns_job_not_found_without_mutating_server() {
+        let mut jobserver = JobServer::new();
+        let existing_id = jobserver.submit(JobKind::Email, String::from("send-email"), 3);
+
+        let result = jobserver.cancel(99, String::from("operator request"));
+
+        assert!(matches!(result, Err(JobError::JobNotFound { job_id: 99 })));
+        assert_eq!(jobserver.queue, VecDeque::from([existing_id]));
+        let existing_job = jobserver
+            .get(existing_id)
+            .expect("existing job should remain registered");
+        assert!(matches!(existing_job.state(), JobState::Queued));
+        assert_eq!(existing_job.completed_attempts(), 0);
+    }
+
+    #[test]
+    fn cancel_rejects_succeeded_job_without_mutation() {
+        let mut jobserver = JobServer::new();
+        let job_id = jobserver.submit(JobKind::Email, String::from("send-email"), 1);
+        assert!(matches!(
+            jobserver.process_next(Some(1)),
+            Ok((processed_id, 0)) if processed_id == job_id
+        ));
+
+        let result = jobserver.cancel(job_id, String::from("too late"));
+
+        assert!(matches!(
+            result,
+            Err(JobError::InvalidTransition {
+                operation: JobOperation::Cancel,
+                from: JobStateKind::Succeeded,
+            })
+        ));
+        assert!(jobserver.queue.is_empty());
+        let job = jobserver
+            .get(job_id)
+            .expect("succeeded job should remain registered");
+        assert_eq!(job.completed_attempts(), 1);
+        assert!(matches!(
+            job.state(),
+            JobState::Succeeded { output } if output == "completed"
+        ));
+    }
+
+    #[test]
+    fn cancelled_job_rejects_attempt_transitions_without_mutation() {
+        let mut job = Job::new(JobKind::Email, String::from("send-email"), 3);
+        assert!(matches!(
+            job.cancel(String::from("operator request")),
+            Ok(())
+        ));
+
+        assert!(matches!(
+            job.try_begin_attempt(),
+            Err(JobError::InvalidTransition {
+                operation: JobOperation::BeginAttempt,
+                from: JobStateKind::Cancelled,
+            })
+        ));
+        assert!(matches!(
+            job.complete_successful_attempt(String::from("completed")),
+            Err(JobError::InvalidTransition {
+                operation: JobOperation::CompleteSuccess,
+                from: JobStateKind::Cancelled,
+            })
+        ));
+        assert!(matches!(
+            job.complete_failed_attempt(String::from("failed")),
+            Err(JobError::InvalidTransition {
+                operation: JobOperation::CompleteFailure,
+                from: JobStateKind::Cancelled,
+            })
+        ));
+        assert_eq!(job.completed_attempts(), 0);
+        assert!(matches!(
+            job.state(),
+            JobState::Cancelled { reason } if reason == "operator request"
+        ));
+    }
+
+    #[test]
+    #[should_panic(expected = "Queue references missing registry job")]
+    fn cancel_panics_when_queue_references_missing_registry_job() {
+        let mut jobserver = JobServer::new();
+        jobserver.queue.push_back(7);
+
+        let _ = jobserver.cancel(7, String::from("operator request"));
+    }
+
+    #[test]
+    #[should_panic(expected = "Queued job must appear exactly once in queue")]
+    fn cancel_panics_when_queued_job_is_missing_from_queue() {
+        let mut jobserver = JobServer::new();
+        let job_id = jobserver.submit(JobKind::Email, String::from("send-email"), 3);
+        assert_eq!(jobserver.queue.pop_front(), Some(job_id));
+
+        let _ = jobserver.cancel(job_id, String::from("operator request"));
+    }
+
+    #[test]
+    #[should_panic(expected = "Queued job must appear exactly once in queue")]
+    fn cancel_panics_when_queued_job_appears_multiple_times() {
+        let mut jobserver = JobServer::new();
+        let job_id = jobserver.submit(JobKind::Email, String::from("send-email"), 3);
+        jobserver.queue.push_back(job_id);
+
+        let _ = jobserver.cancel(job_id, String::from("operator request"));
+    }
+
+    #[test]
+    #[should_panic(expected = "Non-queued job must not appear in queue")]
+    fn cancel_panics_when_non_queued_job_appears_in_queue() {
+        let mut jobserver = JobServer::new();
+        let job_id = jobserver.submit(JobKind::Email, String::from("send-email"), 1);
+        assert!(matches!(
+            jobserver.process_next(Some(1)),
+            Ok((processed_id, 0)) if processed_id == job_id
+        ));
+        jobserver.queue.push_back(job_id);
+
+        let _ = jobserver.cancel(job_id, String::from("too late"));
     }
 }
