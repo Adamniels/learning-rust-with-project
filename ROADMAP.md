@@ -29,14 +29,16 @@ Utgångskriterium: kunna förklara vem som äger varje centralt värde, välja m
 
 Mål: forma en modulär och testbar kärna där abstraktionerna uttrycker verkliga ansvar.
 
-- [ ] Moduler, crates, synlighet och publika API:er
-- [ ] Traits och trait bounds
-- [ ] Generics, monomorfisering och när trait objects är motiverade
-- [ ] Iterators, closures och funktionell databehandling
-- [ ] Lifetimes som relationer mellan referensers giltighet
-- [ ] Testdesign, integrationstester och testbara systemgränser
-- [ ] Domäninvarianter och idiomatisk API-design
-- [ ] Separera domänkärnan från kö-, lagrings- och exekveringsadaptrar
+- [x] Enhet 1: Crates, moduler, synlighet och library boundary
+- [ ] Enhet 2: Traits och standardkontrakt
+- [ ] Enhet 3: Generics, trait bounds och dispatch
+- [ ] Enhet 4: Domäninvarianter och idiomatisk API-design
+- [ ] Enhet 5: Closures och iterators som databehandling
+- [ ] Enhet 6: Lifetimes som relationer
+- [ ] Enhet 7: Testdesign och systemgränser
+- [ ] Enhet 8: Ansvarseparation och konsolidering
+
+Den [detaljerade fasplanen](phases/02-rust-as-design-language.md) beskriver beroendeordningen, projektinkrementen och varför registry samt queue förblir konkreta tills Fas 3 ger verkliga alternativa implementationer.
 
 Utgångskriterium: kunna utforma gränser som är lätta att testa, motivera statisk respektive dynamisk dispatch och använda lifetimes utan att behandla annoteringar som försök att förlänga datas livslängd.
 
