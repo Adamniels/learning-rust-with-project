@@ -14,6 +14,12 @@ pub struct JobServer {
     queue: VecDeque<u64>,
 }
 
+impl Default for JobServer {
+    fn default() -> Self {
+        JobServer::new()
+    }
+}
+
 impl JobServer {
     /// Creates an empty job server whose first submitted job receives ID `1`.
     pub fn new() -> Self {
@@ -151,6 +157,22 @@ mod tests {
         let mut jobserver = JobServer::new();
         assert!(jobserver.get(1).is_none());
         assert!(matches!(jobserver.next_queued(), Err(JobError::QueueEmpty)));
+    }
+
+    #[test]
+    fn default_jobserver_is_empty_and_assigns_first_job_id_one() {
+        let mut jobserver = JobServer::default();
+
+        assert!(jobserver.get(1).is_none());
+        assert!(matches!(
+            jobserver.process_next(None),
+            Err(JobError::QueueEmpty)
+        ));
+
+        let job_id = jobserver.submit(JobKind::Email, String::from("send-email"), 3);
+
+        assert_eq!(job_id, 1);
+        assert!(jobserver.get(1).is_some());
     }
 
     #[test]

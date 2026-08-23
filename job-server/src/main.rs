@@ -1,29 +1,7 @@
 use job_server::{JobError, JobKind, JobServer, JobState};
 
 fn report_job_error(error: JobError) {
-    match error {
-        JobError::AttemptsExhausted {
-            completed_attempts,
-            max_attempts,
-        } => {
-            eprintln!(
-                "Job cannot start: {completed_attempts} of {max_attempts} attempts already completed"
-            );
-        }
-        JobError::QueueEmpty => {
-            eprintln!("Queue empty, nothing to process");
-        }
-        JobError::InvalidTransition { operation, from } => {
-            eprintln!(
-                "Invalid transition: cannot {} from {} state",
-                operation.as_str(),
-                from.as_str()
-            );
-        }
-        JobError::JobNotFound { job_id } => {
-            eprintln!("Job not found, job id: {job_id}");
-        }
-    }
+    eprintln!("{}", error);
 }
 
 // Main

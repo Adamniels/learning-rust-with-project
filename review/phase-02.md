@@ -4,12 +4,12 @@
 
 | Mått | Antal |
 |---|---:|
-| Prediction questions besvarade | 4 |
-| Klara vid första försöket | 3 |
-| Delvis korrekta | 1 |
-| Missuppfattningar | 0 |
-| Öppna reviewobjekt | 1 |
-| Förstärkta reviewobjekt | 2 |
+| Prediction questions besvarade | 15 |
+| Klara vid första försöket | 9 |
+| Delvis korrekta | 5 |
+| Missuppfattningar | 1 |
+| Öppna reviewobjekt | 4 |
+| Förstärkta reviewobjekt | 3 |
 | Stabila reviewobjekt | 0 |
 | Återkommande missuppfattningar | 1 |
 
@@ -105,3 +105,112 @@ Varje module har en egen namespace och scope. `use` binder namn endast i modulen
 | 2026-08-20 | Omedelbar korrigering av `server::simulation` | Korrekt, status lämnas öppen till senare återkallning | `simulation` importerar sina egna beroenden, `simulate_job` är `pub(super)` och dess två tester ligger som descendants till rätt module |
 | 2026-08-21 | Slutlig module-audit | Strukturen är korrekt; återkallning återstår | `server::job_server` och `server::simulation` har separata imports och rätt test-descendants; Adam behöver förklara scopes och sibling paths utan stöd innan status ändras |
 | 2026-08-22 | Avslutande återkallning | Korrekt; tidigare händelse omklassificerad som operationell flyttmiss | Adam förklarade direkt att en import i en sibling-fil inte importerar namnet i den andra. Den underliggande Rust-regeln uttrycks som att varje module har eget scope, även om flera modules skulle skrivas i samma fysiska fil |
+
+## F2-U2-001: Orphan rule kan uppfyllas genom en lokal trait
+
+- **Enhet:** 2
+- **Kategori:** Traits, coherence och orphan rule
+- **Status:** Öppen
+- **Ursprung:** Prediction question 3
+- **Nästa tillfälle:** Naturlig trait- eller newtype-design senare i Fas 2
+- **Ska repeteras nu:** Nej
+
+### Observerad modell
+
+`Display for Job` identifierades korrekt som tillåten och `Display for Vec<Job>` som förbjuden. Däremot bedömdes även den lokala traiten `LocalLabel` vara förbjuden för `Vec<Job>` eftersom `Vec` är extern. Traitens ägarskap räknades därmed inte som den andra tillåtna vägen genom orphan rule.
+
+### Korrekt modell
+
+En implementation tillåts på denna nivå när antingen traiten eller typen är lokal till aktuell crate. Därför är både `Display for Job` och `LocalLabel for Vec<Job>` tillåtna. `Display for Vec<Job>` är förbjuden eftersom både standardtraiten och den implementerade yttertypen `Vec` är externa; att dess typparameter `Job` är lokal gör inte `Vec<Job>` lokal.
+
+### Framtida återkallningsfrågor
+
+1. Vem äger traiten och yttertypen i en föreslagen implementation, och vilken av dem gör implementationen tillåten?
+
+### Historik
+
+| Datum | Sammanhang | Resultat | Evidens |
+|---|---|---|---|
+| 2026-08-22 | Ursprunglig prediction | Delvis korrekt | Lokal typ med extern trait och helt extern kombination klassificerades korrekt; lokal trait för extern typ klassificerades felaktigt |
+
+## F2-U2-002: `Default` komponerar fältens standardkontrakt
+
+- **Enhet:** 2
+- **Kategori:** Standardtraits och konstruktion
+- **Status:** Förstärkt
+- **Ursprung:** Prediction question 4
+- **Nästa tillfälle:** Unit 2:s projektinkrement när `JobServer` får ett motiverat `Default`-kontrakt
+- **Ska repeteras nu:** Nej
+
+### Observerad modell
+
+Det identifierades korrekt att en härledd default kanske inte motsvarar den avsiktliga `JobServer::new()`. Förklaringen använde däremot C#-modellen "null values" och fastställde inte att programmet kompilerar, att `u64::default()` är `0` eller att collectionernas defaults är tomma värden.
+
+### Korrekt modell
+
+Rust har ingen generell nullinitialisering. `#[derive(Default)]` anropar `Default::default()` för varje fälttyp och kräver att samtliga fält implementerar traiten. Här blir `next_job_id` exakt `0`, medan `HashMap` och `VecDeque` blir giltiga tomma collections. Den härledda servern skiljer sig därför semantiskt från `JobServer::new()`, som börjar ID-sekvensen på `1`.
+
+### Framtida återkallningsfrågor
+
+1. Vilket konkret standardvärde får varje fält, och bevarar den sammansatta defaulten typens konstruktorinvarianter?
+
+### Historik
+
+| Datum | Sammanhang | Resultat | Evidens |
+|---|---|---|---|
+| 2026-08-22 | Ursprunglig prediction | Delvis korrekt | Den semantiska risken identifierades, men resultatet och Rusts kompositionsmodell ersattes av en oprecis nullmodell |
+| 2026-08-23 | `JobServer`-projektinkrement | Korrekt tillämpning | Adam implementerade `Default` manuellt genom den kanoniska `new()`-konstruktionen; beteendetest verifierar tom server och första jobb-ID `1`, och Clippys `new_without_default` försvann |
+
+## F2-U2-003: `Copy` kräver att varje ägt fält är `Copy`
+
+- **Enhet:** 2
+- **Kategori:** Derive, ownership och standardtraits
+- **Status:** Öppen
+- **Ursprung:** Prediction question 6
+- **Nästa tillfälle:** Naturlig derive-granskning i Unit 2:s projektinkrement
+- **Ska repeteras nu:** Nej
+
+### Observerad modell
+
+En struct som äger en `String` bedömdes kunna härleda `Copy` eftersom `String` antogs implementera traiten. Kravet att varje fält måste vara `Copy` uttrycktes korrekt, men fälttypens faktiska ownership-semantik klassificerades fel.
+
+### Korrekt modell
+
+`String` äger en heap-allokering och implementerar inte `Copy`. Implicit bitvis kopiering skulle ge två ägare till samma allocation och bryta ägarskapsmodellen. `String` implementerar `Clone`, som utför en explicit djup kopiering av dess innehåll. Därför kan `Job` härleda `Clone` men inte `Copy` så länge den äger en `String`.
+
+### Framtida återkallningsfrågor
+
+1. Vilka resurser äger varje fält, och kan hela värdet dupliceras implicit utan dubbel ownership eller dold kostnad?
+
+### Historik
+
+| Datum | Sammanhang | Resultat | Evidens |
+|---|---|---|---|
+| 2026-08-22 | Ursprunglig prediction | Felaktig | `String` antogs vara `Copy`; derive-kravet var känt men tillämpades på felaktig kunskap om fälttypen |
+
+## F2-U2-004: `ToString` ges genom en blanket implementation
+
+- **Enhet:** 2
+- **Kategori:** Standardtraits och trait resolution
+- **Status:** Öppen
+- **Ursprung:** Prediction question 7
+- **Nästa tillfälle:** Naturlig användning av `Display` i Unit 2:s projektinkrement
+- **Ska repeteras nu:** Nej
+
+### Observerad modell
+
+Programmet bedömdes korrekt kompilera och kopplingen mellan `Display` och `to_string()` identifierades. `to_string()` beskrevs däremot som en metod som `Display` själv innehåller, och den exakta outputen angavs inte.
+
+### Korrekt modell
+
+`Display` deklarerar endast formateringsmetoden `fmt`. Standardbiblioteket har en blanket implementation av `ToString` för varje typ `T` som implementerar `Display`. Metoden `to_string()` kommer alltså från den separata traiten `ToString`, vars implementation blir tillämplig genom `Display`-kontraktet.
+
+### Framtida återkallningsfrågor
+
+1. Vilken trait deklarerar metoden som anropas, och vilken implementation gör metoden tillgänglig för den konkreta typen?
+
+### Historik
+
+| Datum | Sammanhang | Resultat | Evidens |
+|---|---|---|---|
+| 2026-08-22 | Ursprunglig prediction | Delvis korrekt | Beteendet förutsades korrekt, men traiten som faktiskt äger metoden sammanblandades med boundet bakom blanket implementationen |

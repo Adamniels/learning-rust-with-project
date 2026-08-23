@@ -5,39 +5,29 @@ Detta är projektets korta operativa återupptagningspunkt. Historisk evidens li
 ## Nuvarande position
 
 - **Fas:** Fas 2, Rust som designspråk, pågår
-- **Konceptenhet:** Enhet 1 avslutad; Enhet 2, traits och standardkontrakt, är nästa
-- **Steg i inlärningsloopen:** Enhet 1:s avslutskriterium verifierat; Enhet 2:s mentalmodell återstår
-- **Status:** Enhet 1 klar; Enhet 2 inte påbörjad
-- **Repetition:** Fas 1 har 3 öppna och 4 förstärkta objekt; Fas 2 har 1 öppet och 2 förstärkta objekt
+- **Konceptenhet:** Enhet 1 och Enhet 2 avslutade; Enhet 3, generics, trait bounds och dispatch, är nästa
+- **Steg i inlärningsloopen:** Enhet 2:s avslutskriterium verifierat; Enhet 3:s mentalmodell återstår
+- **Status:** Enhet 2 klar; Enhet 3 inte påbörjad
+- **Repetition:** Fas 1 har 3 öppna och 4 förstärkta objekt; Fas 2 har 4 öppna och 3 förstärkta objekt
 
 ## Senast slutfört
 
-- Enhet 1:s mentalmodell för package, targets, crates, crate roots, moduler, paths, visibility och facade har genomförts.
-- Fyra prediction questions har granskats: tre klara och en delvis korrekt. Tre öppna reviewobjekt följer visibility, invariantgränser och module-scoped imports.
-- Package har nu en library target med `src/lib.rs` som crate root och en binary target med `src/main.rs` som separat crate root. Binaryn importerar endast genom `job_server`-facaden.
-- Jobbmodellen är samlad i `src/job.rs`; `Job`, `JobKind`, `JobState`, `JobStateKind` och `JobOperation` delar ett sammanhängande moduleansvar. `src/error.rs` definierar endast `JobError`.
-- `server` består av privata sibling modules för orchestration och simulation. `server/mod.rs` innehåller endast wiring och re-export av `JobServer`.
-- `lib.rs` re-exporterar endast `JobServer`, `Job`, observerande jobbtyper och det nåbara error-kontraktet. Jobbfält, transitions, queue helpers, simulation och retry-policy är inte externt åtkomliga.
-- Sex transitionstester ligger i `job.rs`, fjorton orchestrationstester i `server/job_server.rs` och två simulationstester i `server/simulation.rs`.
-- Grundläggande rustdoc täcker crate-facaden och samtliga publika items. `cargo rustdoc --lib -- -D missing-docs` och `cargo doc --no-deps` passerar.
-- `cargo fmt --check`, `cargo check`, samtliga 22 tester och `cargo run` passerar. Körningen behåller samma resultat: Email-jobbet misslyckas efter tre attempts med total retry delay 6.
-- Clippys tidigare `module_inception` är löst. Endast `new_without_default` återstår och behandlas avsiktligt i Unit 2:s standardtraits.
-- Den avslutande återkallningen visar en klar target/crate-root-modell och korrekt avsikt att begränsa interna helpers. Facade-reexports beskrevs delvis korrekt men behöver fortsatt precision: en re-export från en privat module skapar en nåbar publik path, inte bara en kortare path.
-- Adam ritade module tree och förklarade korrekt att `use` är module-scoped. Den tidigare saknade importen vid uppdelningen av `server` klassificeras därför som en operationell flyttmiss, inte som en kvarvarande felaktig mentalmodell.
-- Enhet 1 uppfyller sitt avslutskriterium och är markerad som klar. Det öppna facade-objektet blockerar inte progression och återkommer genom naturlig användning i Unit 2.
-- Fas 2 börjar med en library boundary. Execution blir fasens första trait-gräns; registry och queue förblir konkreta tills Fas 3 ger verkliga alternativa implementationer.
+- Enhet 2:s standardtrait-inkrement är slutfört. `JobOperation` och `JobStateKind` använder `Display`, `JobError` använder `Debug`, `Display` och `std::error::Error`, binaryn rapporterar fel genom standardkontraktet och `JobServer::Default` delegerar till `new()` utan att ändra ID-semantiken.
+- Slutgrinden passerar: `cargo fmt --check`, `cargo check`, samtliga 26 tester, `cargo clippy --all-targets --all-features`, strikt rustdoc och `cargo run`. Körningen ger oförändrat resultat: Email-jobbet misslyckas efter tre attempts med total retry delay 6.
+- Det tidigare öppna `Default`-objektet är förstärkt genom Adams korrekta manuella implementation och beteendetest. Övriga öppna reviewobjekt blockerar inte progression.
+- Job servern behåller Unit 1:s library facade och tunna binary. Execution blir nästa verkliga trait-gräns; registry och queue förblir konkreta tills senare behov motiverar abstraktion.
 
 ## Nästa konkreta handling
 
-Påbörja Enhet 2:s mentalmodell: varför traits finns, inherent methods jämfört med trait methods, `impl Trait for Type`, method resolution, coherence och orphan rule. Knyt modellen till Clippys väntande `Default`-förslag utan att implementera projektkod före prediction questions.
+Påbörja Enhet 3:s mentalmodell: generiska funktioner och typer, trait bounds, `where` clauses, `impl Trait`, monomorfisering och static dispatch. Introducera därefter skillnaden mot `dyn Trait`, vtables och object safety utan att ändra projektkod före prediction questions.
 
 ## Aktuell lärdom
 
-`src/lib.rs` och `src/main.rs` är separata crate roots. Filer används för sammanhängande moduleansvar, medan `lib.rs` formar den externa arkitekturgränsen genom avsiktliga re-exports. `use` ändrar inte visibility, och varje typ i en publik signatur måste själv vara nåbar genom facaden.
+Standardtraits ersätter ad hoc-metoder när semantiken är gemensam och etablerad: `Display` äger presentation, `Error` placerar domänfelet i Rusts felkontrakt och `Default` uttrycker en kanonisk giltig konstruktion. Derives och manuella implementationer måste motiveras av typens semantik, inte bara av att de kompilerar.
 
 ## Öppna frågor eller blockerare
 
-Inga blockerare. Facade-reachability ligger kvar som öppet reviewobjekt och prövas genom naturlig användning. Clippys `Default`-förslag blir Unit 2:s första konkreta standardtrait-fall.
+Inga blockerare. Fas 2:s fyra öppna objekt prövas genom naturlig användning och blockerar inte progression.
 
 ## Beslut som ska bestå
 

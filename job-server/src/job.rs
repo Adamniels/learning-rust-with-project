@@ -1,4 +1,5 @@
 use crate::error::JobError;
+use std::fmt;
 
 /// The kind of work represented by a [`Job`].
 pub enum JobKind {
@@ -47,6 +48,7 @@ impl JobState {
 }
 
 /// An operation that can participate in a job state transition.
+#[derive(Debug)]
 pub enum JobOperation {
     /// Begin the next processing attempt.
     BeginAttempt,
@@ -58,22 +60,24 @@ pub enum JobOperation {
     Cancel,
 }
 
-impl JobOperation {
-    /// Returns a human-readable name for the operation.
-    pub fn as_str(&self) -> &'static str {
+impl fmt::Display for JobOperation {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            JobOperation::BeginAttempt => "begin attempt",
-            JobOperation::CompleteSuccess => "complete success",
-            JobOperation::CompleteFailure => "complete failure",
-            JobOperation::Cancel => "cancel",
+            JobOperation::BeginAttempt => write!(f, "begin attempt"),
+            JobOperation::CompleteSuccess => write!(f, "complete success"),
+            JobOperation::CompleteFailure => write!(f, "complete failure"),
+            JobOperation::Cancel => write!(f, "cancel"),
         }
     }
 }
+
+impl JobOperation {}
 
 /// A payload-free classification of [`JobState`].
 ///
 /// This is useful when a caller needs to identify a state without owning or
 /// exposing the state-specific output, error, or cancellation reason.
+#[derive(Debug)]
 pub enum JobStateKind {
     /// The job is queued.
     Queued,
@@ -87,18 +91,19 @@ pub enum JobStateKind {
     Cancelled,
 }
 
-impl JobStateKind {
-    /// Returns a human-readable name for the state kind.
-    pub fn as_str(&self) -> &'static str {
+impl fmt::Display for JobStateKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            JobStateKind::Queued => "queued",
-            JobStateKind::Running => "running",
-            JobStateKind::Succeeded => "succeeded",
-            JobStateKind::Failed => "failed",
-            JobStateKind::Cancelled => "cancelled",
+            JobStateKind::Queued => write!(f, "queued"),
+            JobStateKind::Running => write!(f, "running"),
+            JobStateKind::Succeeded => write!(f, "succeeded"),
+            JobStateKind::Failed => write!(f, "failed"),
+            JobStateKind::Cancelled => write!(f, "cancelled"),
         }
     }
 }
+
+impl JobStateKind {}
 
 /// A registered unit of work and its processing state.
 ///
@@ -214,6 +219,35 @@ impl Job {
 mod tests {
     use super::{Job, JobKind, JobOperation, JobState, JobStateKind};
     use crate::error::JobError;
+
+    #[test]
+    fn job_operation_display_uses_human_readable_names() {
+        let cases = [
+            (JobOperation::BeginAttempt, "begin attempt"),
+            (JobOperation::CompleteSuccess, "complete success"),
+            (JobOperation::CompleteFailure, "complete failure"),
+            (JobOperation::Cancel, "cancel"),
+        ];
+
+        for (operation, expected) in cases {
+            assert_eq!(operation.to_string(), expected);
+        }
+    }
+
+    #[test]
+    fn job_state_kind_display_uses_human_readable_names() {
+        let cases = [
+            (JobStateKind::Queued, "queued"),
+            (JobStateKind::Running, "running"),
+            (JobStateKind::Succeeded, "succeeded"),
+            (JobStateKind::Failed, "failed"),
+            (JobStateKind::Cancelled, "cancelled"),
+        ];
+
+        for (state_kind, expected) in cases {
+            assert_eq!(state_kind.to_string(), expected);
+        }
+    }
 
     #[test]
     fn job_transitions_from_queued_to_running_and_back() {

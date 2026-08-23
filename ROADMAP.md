@@ -30,7 +30,7 @@ Utgångskriterium: kunna förklara vem som äger varje centralt värde, välja m
 Mål: forma en modulär och testbar kärna där abstraktionerna uttrycker verkliga ansvar.
 
 - [x] Enhet 1: Crates, moduler, synlighet och library boundary
-- [ ] Enhet 2: Traits och standardkontrakt
+- [x] Enhet 2: Traits och standardkontrakt
 - [ ] Enhet 3: Generics, trait bounds och dispatch
 - [ ] Enhet 4: Domäninvarianter och idiomatisk API-design
 - [ ] Enhet 5: Closures och iterators som databehandling
