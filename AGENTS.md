@@ -41,6 +41,8 @@ Each concept unit normally progresses through:
 
 This is an ordering of learning activities, not a session-length requirement. A session may stop after any coherent substep. Do not invent time boxes, weekly schedules, deadlines, or mandatory session lengths.
 
+After presenting a concept unit's mental model for the first time, pause for Adam's follow-up questions and deeper exploration. Do not include prediction questions, test questions, or a comprehension check in the initial theory response. Begin the prediction step only after Adam explicitly indicates that he is ready to proceed. Questions Adam asks during this exploration are part of the mental-model step and must not be treated as evidence gaps merely because he requested clarification.
+
 Do not force a separate lab or project change for every small syntax feature. Group related concepts when that gives a clearer mental model and avoids artificial architecture.
 
 Calibrate exercises to Adam's existing programming experience. Skip or compress a micro-lab when it mainly rehearses language-independent programming skills and the predictions already provide enough evidence. A lab should isolate genuine Rust-specific friction or expose a meaningful uncertainty; it is not a mandatory ritual. Preserve any unresolved Rust-specific concept by testing it through the project increment or delayed review instead.
