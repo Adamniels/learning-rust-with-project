@@ -5,10 +5,10 @@ Detta är projektets korta operativa återupptagningspunkt. Historisk evidens li
 ## Nuvarande position
 
 - **Fas:** Fas 2, Rust som designspråk, pågår
-- **Konceptenhet:** Enhet 1 och Enhet 2 avslutade; Enhet 3, generics, trait bounds och dispatch, är nästa
-- **Steg i inlärningsloopen:** Enhet 3:s första prediction questions om generics och dispatch är aktiva
+- **Konceptenhet:** Enhet 1 och Enhet 2 avslutade; Enhet 3, generics, trait bounds och dispatch, pågår
+- **Steg i inlärningsloopen:** Enhet 3:s mentalmodell fortsätter med associated types och dyn compatibility
 - **Status:** Enhet 2 klar; Enhet 3 påbörjad
-- **Repetition:** Fas 1 har 3 öppna och 4 förstärkta objekt; Fas 2 har 4 öppna och 3 förstärkta objekt
+- **Repetition:** Fas 1 har 3 öppna och 4 förstärkta objekt; Fas 2 har 6 öppna och 3 förstärkta objekt
 
 ## Senast slutfört
 
@@ -16,18 +16,19 @@ Detta är projektets korta operativa återupptagningspunkt. Historisk evidens li
 - Slutgrinden passerar: `cargo fmt --check`, `cargo check`, samtliga 26 tester, `cargo clippy --all-targets --all-features`, strikt rustdoc och `cargo run`. Körningen ger oförändrat resultat: Email-jobbet misslyckas efter tre attempts med total retry delay 6.
 - Det tidigare öppna `Default`-objektet är förstärkt genom Adams korrekta manuella implementation och beteendetest. Övriga öppna reviewobjekt blockerar inte progression.
 - Job servern behåller Unit 1:s library facade och tunna binary. Execution blir nästa verkliga trait-gräns; registry och queue förblir konkreta tills senare behov motiverar abstraktion.
+- Enhet 3:s första fyra predictions är granskade. Samma-typkravet för `&E`, två monomorfiserade executorvarianter och projektets val av static dispatch identifierades; `impl Trait` sammanblandades med dynamic dispatch och `&dyn Trait` med obligatorisk heapallokering.
 
 ## Nästa konkreta handling
 
-Adam besvarar de fyra aktiva prediction questions utan att köra eller slå upp koden: typrelationer mellan parametrar, monomorfisering, trait-object-representation och dispatchvalet för nuvarande job server. Granska varje svar konkret och fortsätt sedan mentalmodellen med associated types och dyn compatibility.
+Fördjupa associated types som en entydig relation mellan en trait-implementation och dess outputtyp, samt dyn compatibility som kravet att ett trait-object-anrop kan beskrivas utan att känna konkret `Self`. Ge utrymme för Adams följdfrågor innan nästa prediction-runda eller dispatch-labb.
 
 ## Aktuell lärdom
 
-Generics separerar en algoritm eller typ från en konkret implementation, medan trait bounds anger exakt vilket beteende den generiska koden får använda. Static dispatch monomorfiserar använda konkreta typer; `dyn Trait` raderar den konkreta typen bakom en pointer och väljer implementation via en vtable vid runtime. Job serverns nuvarande `Option<u32>` är simulationsstyrning, inte ett execution contract.
+`impl Trait` i parameterposition är generic och använder static dispatch; separata förekomster motsvarar separata anonyma type parameters. Anrop och monomorfiserade instansieringar är olika saker. `&dyn Trait` använder en data-pointer och vtable-pointer för runtime dispatch men lånar bara sitt värde och orsakar inte i sig heapallokering.
 
 ## Öppna frågor eller blockerare
 
-Inga blockerare. Fas 2:s fyra öppna objekt prövas genom naturlig användning och blockerar inte progression.
+Inga blockerare. Fas 2:s sex öppna objekt prövas genom naturlig användning och blockerar inte progression.
 
 ## Beslut som ska bestå
 

@@ -4,11 +4,11 @@
 
 | Mått | Antal |
 |---|---:|
-| Prediction questions besvarade | 15 |
+| Prediction questions besvarade | 19 |
 | Klara vid första försöket | 9 |
-| Delvis korrekta | 5 |
-| Missuppfattningar | 1 |
-| Öppna reviewobjekt | 4 |
+| Delvis korrekta | 8 |
+| Missuppfattningar | 2 |
+| Öppna reviewobjekt | 6 |
 | Förstärkta reviewobjekt | 3 |
 | Stabila reviewobjekt | 0 |
 | Återkommande missuppfattningar | 1 |
@@ -214,3 +214,57 @@ Programmet bedömdes korrekt kompilera och kopplingen mellan `Display` och `to_s
 | Datum | Sammanhang | Resultat | Evidens |
 |---|---|---|---|
 | 2026-08-22 | Ursprunglig prediction | Delvis korrekt | Beteendet förutsades korrekt, men traiten som faktiskt äger metoden sammanblandades med boundet bakom blanket implementationen |
+
+## F2-U3-001: `impl Trait` i parameterposition använder static dispatch
+
+- **Enhet:** 3
+- **Kategori:** Generics, monomorfisering och static dispatch
+- **Status:** Öppen
+- **Ursprung:** Prediction questions 1 och 2
+- **Nästa tillfälle:** Enhet 3:s dispatch-labb eller executor-inkrement
+- **Ska repeteras nu:** Nej
+
+### Observerad modell
+
+Det identifierades korrekt att två `&E`-parametrar kräver samma konkreta typ och att två separata `&impl Executor`-parametrar inte gör det. Den senare formen förklarades däremot som att implementationen hittas dynamiskt under körningen. Tre anrop till en generic funktion beskrevs också som tre instansieringar men två varianter, vilket blandade ihop anrop med monomorfiserade instansieringar.
+
+### Korrekt modell
+
+Varje separat `impl Executor` i parameterposition motsvarar konceptuellt en egen anonym type parameter och använder static dispatch. Den konkreta typen bestäms vid compile time och den använda kombinationen monomorfiseras. Antalet körningsanrop avgör inte antalet instansieringar: två anrop med `SyncExecutor` och ett med `FakeExecutor` är tre anrop men två distinkta instansieringar, `process_static::<SyncExecutor>` och `process_static::<FakeExecutor>`.
+
+### Framtida återkallningsfrågor
+
+1. Vilka anonyma eller namngivna type parameters finns i signaturen, och vilka konkreta typkombinationer monomorfiseras oberoende av antalet anrop?
+
+### Historik
+
+| Datum | Sammanhang | Resultat | Evidens |
+|---|---|---|---|
+| 2026-09-01 | Ursprungliga dispatch-predictions efter några dagars uppehåll | Delvis korrekt | Typkravet och de två kodvarianterna identifierades, men `impl Trait` kopplades felaktigt till runtime dispatch och anrop sammanblandades med instansieringar |
+
+## F2-U3-002: Trait object kräver indirection men inte heapallokering
+
+- **Enhet:** 3
+- **Kategori:** Trait objects, vtables och memory representation
+- **Status:** Öppen
+- **Ursprung:** Prediction question 3
+- **Nästa tillfälle:** Enhet 3:s dispatch-labb
+- **Ska repeteras nu:** Nej
+
+### Observerad modell
+
+Det identifierades att `execute` måste välja implementation utifrån den konkreta typen bakom trait objectet. Mekanismen genom fat pointer och vtable kunde inte beskrivas, och `&dyn Executor` antogs innebära heapallokering eftersom dispatchinformationen behöver lagras.
+
+### Korrekt modell
+
+`&dyn Executor` är en lånad trait-object-referens som konceptuellt innehåller en data-pointer och en vtable-pointer. Vtabellen för kombinationen konkret typ och trait innehåller den metodinformation som behövs för det indirekta runtime-anropet. Referensen kan peka på ett lokalt värde och kräver ingen heapallokering. `Box<dyn Executor>` och `Arc<dyn Executor>` placerar däremot det ägda eller delade värdet på heapen på grund av pointertypens ownershipmodell, inte på grund av `dyn` i sig.
+
+### Framtida återkallningsfrågor
+
+1. Vilka två pointerdelar bär en lånad trait-object-referens, hur väljs metoden och vilken pointertyp, om någon, orsakar heapallokering?
+
+### Historik
+
+| Datum | Sammanhang | Resultat | Evidens |
+|---|---|---|---|
+| 2026-09-01 | Ursprunglig trait-object-prediction efter några dagars uppehåll | Felaktig med korrekt intuition om runtime-val | Den konkreta implementationen förstods behöva styra anropet, men vtable-mekanismen saknades och `&dyn Trait` kopplades felaktigt till obligatorisk heapallokering |
